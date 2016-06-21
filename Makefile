@@ -18,29 +18,27 @@
 #
 #
 #
+export TOP = $(PWD)
+export RISCV = $(TOP)/riscv-install
+export BSG_REPO = $(TOP)/bsg-addons
+export BSG_TESTS = $(BSG_REPO)/tests
+export TEST_SRCS= $(wildcard $(BSG_TESTS)/*.c)
+export TEST_OBJS=$(TEST_SRCS:.c=.o)
+export RISCV_LINUX = $(BSG_REPO)/riscv-linux
+export BSG_SCRIPTS = $(BSG_REPO)/scripts
+export ROOT_MNT = /root/mount-dir/mnt
 
-export RISCV:=$(PWD)/riscv-install
-#export RISCV:=$(PWD)/rocket-chip/riscv-tools
-#export BIN:=$(PWD)/bin
-export RISCV-LINUX:=$(PWD)/linux_zedboard
-export ROCKET-CHIP:=$(PWD)/rocket-chip
 export LM_LICENSE_FILE      = 27000@bbfs-00.calit2.net
 export SNPSLMD_LICENSE_FILE = $(LM_LICENSE_FILE)
 export SYNOPSYS_DIR=/gro/cad/synopsys
 export VCS_RELEASE=vcs/J-2014.12-SP2
 export VCS_BIN       = $(SYNOPSYS_DIR)/$(VCS_RELEASE)/bin
 export VCS_HOME      = $(SYNOPSYS_DIR)/$(VCS_RELEASE)
-
-PATH:=/opt/rh/devtoolset-2/root/usr/bin:$(PATH):$(RISCV)/bin:$(VCS_BIN)
-
-#export GMP_VERSION = 6.1.0
-#export MPFR_VERSION = 3.1.4
-#export MPC_VERSION= 1.0.3
+PATH:=$(RISCV)/bin:/opt/rh/devtoolset-2/root/usr/bin:$(PATH):$(VCS_BIN)
 
 export CC=/opt/rh/devtoolset-2/root/usr/bin/gcc
 export CXX=/opt/rh/devtoolset-2/root/usr/bin/g++
 export SED=sed
-
 export PATH
 export SHELL:=$(SHELL)
 
@@ -50,17 +48,19 @@ export SHELL:=$(SHELL)
 export BSG_VCS_OPTS=+define+verbose +define+stats
 
 nothing:
+	@echo "$(PATH)"
 	which gcc
 	which spike
-	#which riscv64-unknown-elf-gcc
-	#which gcc
-	#which riscv64-unknown-linux-gnu-gcc 
+	which riscv64-unknown-elf-gcc
+	riscv64-unknown-elf-gcc -o $(BSG_TESTS)/hello.rv $(BSG_TESTS)/hello.c
+	riscv64-unknown-linux-gnu-gcc -o $(BSG_TESTS)/hello.o $(BSG_TESTS)/hello.c
 
 checkout-all:
+	@echo
+	@echo "#Cloning repositories recursively.."
 	git clone https://github.com/ucb-bar/rocket-chip.git
 	cd rocket-chip; git checkout ba96ad2b383a97a15b2d95b1acfd551f576c8faa #hurricane chip tape-out tag 
-	#cd rocket-chip; git submodule update --init --recursive
-	cd rocket-chip; git submodule update --init riscv-tools
+	cd rocket-chip; git submodule update --init --recursive
 	cd rocket-chip/riscv-tools;     git submodule update --init --recursive
 
 # XXXX various warnings for build-riscv-tools below:
@@ -83,28 +83,85 @@ checkout-all:
 #/homes/mbt/raw/riscv/rocket-chip/riscv-tools/riscv-gnu-toolchain/build/src/newlib-gcc/gcc/config/riscv/riscv.md:2317: warning: operand 0 missing mode?
 #/homes/mbt/raw/riscv/rocket-chip/riscv-tools/riscv-gnu-toolchain/build/src/newlib-gcc/gcc/config/riscv/riscv.md:2339: warning: operand 1 missing mode?
 #/homes/mbt/raw/riscv/rocket-chip/riscv-tools/riscv-gnu-toolchain/build/src/newlib-gcc/gcc/config/riscv/riscv.md:2351: warning: operand 1 missing mode?
+
 build-riscv-tools-newlib: 
+	@echo
+	@echo "#Building riscv tools (newlib).."
 	cd rocket-chip/riscv-tools; sed -i 's/JOBS=16/JOBS=8/' build.common
 	cd rocket-chip/riscv-tools; ./build.sh | tee $@.log
 
-build-riscv-tools-spike-only: 
+%.rv: %.c
+	@echo
+	@echo "#Compiling test code $(notdir $<).."
+	riscv64-unknown-elf-gcc -o $@ $<
+
+#echo '#include <stdio.h>' > $(BSG_TESTS)/hello.c
+#echo ' int main(void) { printf("Hello world!\n"); return 0; }' >> $(BSG_TESTS)/hello.c
+#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/hello.rv $(BSG_TESTS)/hello.c
+
+test-spike-hello: $(BSG_TESTS)/hello.rv
+	@echo
+	@echo "#Running $(notdir $<) on spike with pk.."
+	spike pk $<
+	@echo "sucess!"
+
+#cp $(TOP)/rocket-chip/riscv-tools/riscv-isa-sim/dummy_rocc/dummy_rocc_test.c $(BSG_TESTS)/
+
+test-spike-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
+	spike --extension=dummy_rocc pk $<
+
+build-spike-pk: 
+	@echo
+	@echo "#Building spike and pk only.."
 	cd rocket-chip/riscv-tools; sed -i 's/JOBS=16/JOBS=8/' build.common
-	cd rocket-chip/riscv-tools; ./build-spike-only.sh | tee $@.log
+	cd rocket-chip/riscv-tools; $(BSG_SCRIPTS)/build-spike-pk-only.sh | tee $@.log
 
-build-riscv-tools-linux: build-riscv-tools-newlib
-	cd rocket-chip/riscv-tools/riscv-gnu-toolchain; ./configure --prefix=$(RISCV) | tee config.log
-	#make -C rocket-chip/riscv-tools/riscv-gnu-toolchain clean
-	make -C rocket-chip/riscv-tools/riscv-gnu-toolchain -j16 linux | tee $@.log
+build-riscv-tools-linux:
+	@echo
+	@echo "#Building riscv tools (linux).."
+	CC= CXX= bash -c '$(BSG_SCRIPTS)/build-linux.sh > build.log'
 
-clean:
+test-spike-rocc-linux:
+	cd linux_zedboard; spike --extension=dummy_rocc +disk=root.bin bbl vmlinux
+
+%.o: %.c
+	@echo
+	@echo "#Compiling test code $(notdir $<).."
+	riscv64-unknown-linux-gnu-gcc -static -o $@ $<
+
+spike-linux-test-setup: $(TEST_OBJS) 
+	@echo
+	@echo "#Placing compiled objects in the file system for linux boot on RISC-V (Need root privileges for writable mount!!).."
+	su -c '	mkdir -p $(ROOT_MNT); \
+					cp $(RISCV_LINUX)/original_root.bin $(ROOT_MNT)/../root.bin; \
+					mount -o loop $(ROOT_MNT)/../root.bin $(ROOT_MNT); \
+					$(foreach i, $(TEST_OBJS), cp $(i) $(ROOT_MNT)/bin/$(basename $(notdir $(i)));) \
+					umount $(ROOT_MNT); \
+					cd $(ROOT_MNT)/../; \
+					su anr044 -c "cp root.bin $(RISCV_LINUX)"'
+
+spike-linux-test:
+	@echo
+	@echo "#Booting linux on RISC-V (spike).."
+	cd $(RISCV_LINUX); spike +disk=root.bin $(RISCV)/riscv64-unknown-linux-gnu/bin/bbl vmlinux
+
+#fetch-riscv-linux:
+#	make -C rocket-chip/fpga-zynq/zybo fetch-riscv-linux-deliver
+#	cp -r rocket-chip/fpga-zynq/zybo/deliver_output/riscv riscv-linux/
+
+clean-all:
 	rm -rf rocket-chip
+	rm -rf riscv-install
 
-emulator: 
+test-clean:
+
+emulator-tests: 
 	cd rocket-chip/emulator; make clean
 	cd rocket-chip/emulator; make
-	#cd rocket-chip/emulator; make run-asm-tests
-	#cd rocket-chip/emulator; make run-bmark-tests	
-	
+	cd rocket-chip/emulator; make run-asm-tests
+	cd rocket-chip/emulator; make run-bmark-tests	
+
+emulator-linux: 
 	cd rocket-chip/emulator; time ./emulator-Top-DefaultCPPConfig +dramsim +max-cycles=1000000000 +verbose \
 	  +disk=../../linux_zedboard/root.bin \
 		 	bbl ../../linux_zedboard/vmlinux \
@@ -128,12 +185,12 @@ rocket-chip/rocc-template:
 	git clone -b update https://github.com/anujnr/rocc-template.git rocket-chip/rocc-template
 
 build-sha: rocket-chip/rocc-template
-	#cd rocket-chip/rocc-template; ./install-symlinks
-	#mkdir -p rocket-chip/riscv-tools/riscv-isa-sim/build-sha
-	#cd rocket-chip/riscv-tools/riscv-isa-sim/build-sha; ../configure --prefix=$(RISCV) --with-fesvr=$(RISCV) | tee config.log
+	cd rocket-chip/rocc-template; ./install-symlinks
+	mkdir -p rocket-chip/riscv-tools/riscv-isa-sim/build-sha
+	cd rocket-chip/riscv-tools/riscv-isa-sim/build-sha; ../configure --prefix=$(RISCV) --with-fesvr=$(RISCV) | tee config.log
 	cd rocket-chip/riscv-tools; ./build-spike-only.sh
-	#make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha
-	#make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha install
+	make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha
+	make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha install
 
 clean-sha:
 	rm rocket-chip/src/main/scala/PrivateConfigs.scala
@@ -166,25 +223,6 @@ emulator-sha-linux:
 emulator-debug:
 	cd rocket-chip/emulator; make debug
 
-test:
-	make $@.run
-
-test.run:
-	echo $(PATH)
-	echo '#include <stdio.h>' > hello.c
-	echo ' int main(void) { printf("Hello world!\n"); return 0; }' >> hello.c
-	riscv64-unknown-elf-gcc -o hello hello.c
-	spike pk hello
-
-test-rocc:
-	riscv64-unknown-elf-gcc -o dummy_rocc_test /homes/anr044/raw/riscv/rocket-chip/riscv-tools/riscv-isa-sim/dummy_rocc/dummy_rocc_test.c
-	spike --extension=dummy_rocc pk dummy_rocc_test
-
-compile-rocc-linux:
-	riscv64-unknown-linux-gnu-gcc -static -o dummy_rocc_test /homes/anr044/raw/riscv/rocket-chip/riscv-tools/riscv-isa-sim/dummy_rocc/dummy_rocc_test.c
-	
-test-rocc-linux:
-	cd linux_zedboard; spike --extension=dummy_rocc +disk=root.bin bbl vmlinux
 
 verilog:
 	cd rocket-chip/vsim; make verilog
@@ -207,12 +245,12 @@ verilog-run:
 	make -C rocket-chip/vsim run
 	
 verilog-run-linux: #verilog-run
-	cd rocket-chip/vsim; time ./simv-Top-DefaultVLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV-LINUX)/root.bin $(RISCV)/riscv64-unknown-elf/bin/bbl $(RISCV-LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > /dev/null
+	cd rocket-chip/vsim; time ./simv-Top-DefaultVLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV_LINUX)/root.bin $(RISCV)/riscv64-unknown-elf/bin/bbl $(RISCV_LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
 verilog-run-rocc: verilog-clean
 	make -C rocket-chip/vsim CONFIG=RoccExampleConfig
 	#make -C rocket-chip/vsim CONFIG=RoccExampleConfig run
-	cd rocket-chip/vsim; time ./simv-Top-RoccExampleConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV-LINUX)/root.bin $(RISCV)/riscv64-unknown-elf/bin/bbl $(RISCV-LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > /dev/null
+	cd rocket-chip/vsim; time ./simv-Top-RoccExampleConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV_LINUX)/root.bin $(RISCV)/riscv64-unknown-elf/bin/bbl $(RISCV_LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
 verilog-run-sha: verilog-clean
 	make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig
@@ -223,34 +261,34 @@ verilog-run-sha: verilog-clean
 verilog-debug: verilog-clean
 	make -C rocket-chip/vsim run-debug
 
-gmp-$(GMP_VERSION):
-	wget http://ftp.gnu.org/gnu/gmp/gmp-$(GMP_VERSION).tar.bz2
-	bunzip2 gmp-$(GMP_VERSION).tar.bz2
-	tar xvf gmp-$(GMP_VERSION).tar
-	cd gmp-$(GMP_VERSION);	./configure --disable-shared --enable-static --prefix=$(BIN)
-	cd gmp-$(GMP_VERSION); make && make check && make install
-
-mpfr-$(MPFR_VERSION): gmp-$(GMP_VERSION)
-	wget http://ftp.gnu.org/gnu/mpfr/mpfr-$(MPFR_VERSION).tar.bz2
-	bunzip2 mpfr-$(MPFR_VERSION).tar.bz2
-	tar xvf mpfr-$(MPFR_VERSION).tar
-	cd mpfr-$(MPFR_VERSION); ./configure --disable-shared --enable-static --prefix=$(BIN) --with-gmp=$(BIN)
-	cd mpfr-$(MPFR_VERSION); make && make check && make install
-
-mpc-$(MPC_VERSION): mpfr-$(MPFR_VERSION) gmp-$(GMP_VERSION)
-	wget http://ftp.gnu.org/gnu/mpc/mpc-$(MPC_VERSION).tar.gz
-	tar zxvf mpc-$(MPC_VERSION).tar.gz
-	cd mpc-$(MPC_VERSION); ./configure --disable-shared --enable-static --prefix=$(BIN) --with-gmp=$(BIN) --with-mpfr=$(BIN)
-	make -C mpc-$(MPC_VERSION) #make check && make install
-
+#gmp-$(GMP_VERSION):
+#	wget http://ftp.gnu.org/gnu/gmp/gmp-$(GMP_VERSION).tar.bz2
+#	bunzip2 gmp-$(GMP_VERSION).tar.bz2
+#	tar xvf gmp-$(GMP_VERSION).tar
+#	cd gmp-$(GMP_VERSION);	./configure --disable-shared --enable-static --prefix=$(BIN)
+#	cd gmp-$(GMP_VERSION); make && make check && make install
+#
+#mpfr-$(MPFR_VERSION): gmp-$(GMP_VERSION)
+#	wget http://ftp.gnu.org/gnu/mpfr/mpfr-$(MPFR_VERSION).tar.bz2
+#	bunzip2 mpfr-$(MPFR_VERSION).tar.bz2
+#	tar xvf mpfr-$(MPFR_VERSION).tar
+#	cd mpfr-$(MPFR_VERSION); ./configure --disable-shared --enable-static --prefix=$(BIN) --with-gmp=$(BIN)
+#	cd mpfr-$(MPFR_VERSION); make && make check && make install
+#
+#mpc-$(MPC_VERSION): mpfr-$(MPFR_VERSION) gmp-$(GMP_VERSION)
+#	wget http://ftp.gnu.org/gnu/mpc/mpc-$(MPC_VERSION).tar.gz
+#	tar zxvf mpc-$(MPC_VERSION).tar.gz
+#	cd mpc-$(MPC_VERSION); ./configure --disable-shared --enable-static --prefix=$(BIN) --with-gmp=$(BIN) --with-mpfr=$(BIN)
+#	make -C mpc-$(MPC_VERSION) #make check && make install
+#
 #http://stackoverflow.com/questions/9450394/how-to-install-gcc-piece-by-piece-with-gmp-mpfr-mpc-elf-without-shared-libra
 
-linux-3.14.41: 
-	curl -L https://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.14.41.tar.xz | tar -xJ
-	cd linux-3.14.41; git init
-	cd linux-3.14.41; git remote add -t linux-3.14.y-riscv origin https://github.com/riscv/riscv-linux.git
-	cd linux-3.14.41; git fetch
-	cd linux-3.14.41; git checkout -f -t origin/linux-3.14.y-riscv
+#linux-3.14.41: 
+#	curl -L https://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.14.41.tar.xz | tar -xJ
+#	cd linux-3.14.41; git init
+#	cd linux-3.14.41; git remote add -t linux-3.14.y-riscv origin https://github.com/riscv/riscv-linux.git
+#	cd linux-3.14.41; git fetch
+#	cd linux-3.14.41; git checkout -f -t origin/linux-3.14.y-riscv
 
 linux-4.1.17: 
 	curl -L https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.1.17.tar.xz | tar -xJ
@@ -272,6 +310,3 @@ busy-box:
 	#make -C busybox-1.21.1 allnoconfig
 	#make -C busybox-1.21.1 menuconfig
 	make -C busybox-1.21.1 -j4
-
-spike-linux:
-	cd linux_zedboard; spike +disk=root.bin bbl vmlinux

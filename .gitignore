@@ -1,0 +1,6 @@
+rocket-chip
+riscv-install
+*.o
+*.rv
+*.log
+bsg_addons/riscv-linux/root.bin
