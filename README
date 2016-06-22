@@ -1,11 +1,85 @@
 ##Bringing up a custom accelerator on Linux-based Rocket core##
 
-Steps to set up:
-1. make checkout-all
-2. make build-riscv-tools-newlib (for pk and newlib)
-4. make build-riscv-tools-linux (to compile for linux)
+BSG-RISCV README
 
-Steps to test the infrastructure:
-1. make test (to check hello works)
-2. make emulator (to run riscv-tests)
-3. make spike-linux (to run prebuilt riscv-linux)
+Repository overview:
+Here we enumerate the procedure to setup the environment for running programs on RISC-V rocket cores integrated with one or more custom accelerators. Although we do support running tests in bare metal and the stripped-down Newlib on Proxy Kernel for the sake of preliminary testing, our main focus is to work with a full-blown Linux OS on the accelerator-integrated RISC-V system.
+
+We support the following platforms:
+1. Functional ISA simulators (golden spike)
+2. Verilog RTL simulations using VCS
+
+In order to achieve this, we make use of tests, scripts/flows, and prebuilt linux & file system images prepared at the BSG group, UC San Diego. This work is an extension to the rocket-chip repository developed at UC Berkeley.
+
+
+Preliminary checks:
+- '$' symbol throughout this documentation refers the command prompt on the host machine and is followed by commands that must be executed by the user on the terminal. Similarly '#' represents the command prompt in the linux booted on RISC-V
+- Unless otherwise mentioned, all subparts must be run in sequence to avoid the dependency chain from breaking 
+- Root privileges will be necessary for writeable mounts of the RISC-V file system on the host machine, in order to place compiled binaries that will be executed from RISC-V Linux
+- The RISC-V toolchain installation requires a compiler with C++11 support (eg. GCC >=4.8). We use devtoolset-2 and set CC and CXX variables to the appropriate path in the main Makefile. Please make sure to change that path to your installation directory, if necessary
+- For the RISC-V toolchain, the following packages are necessary and assumed to be present:
+autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc
+- We configure all build for 8 parallel jobs (JOBS=8). Please set JOBS in the Makefile as per the capabilities of your host machine since higher or lower than the optimal number may slow down runs
+
+
+Download the repositories:
+The following commands pull the contents of BSG-RISCV repository, alongside the rocket-chip super-repository, which in turn recursively clones all necessary sub-project repositories. 
+
+$ git clone https://anujnr@bitbucket.org/anujnr/bsg_riscv.git
+$ cd bsg_riscv
+$ make checkout-all
+
+
+Build and Test the RISC-V toolchain (with newlib):
+This installs the complete RISC-V toolchain to compile programs for Newlib on Proxy kernel or bare metal runs.
+
+$ make build-riscv-tools-newlib
+
+You may test the newly built components by
+
+$ make test-spike-hello
+
+The above run compiles a simple “hello world” program (bsg-addons/tests/bsg_hello.c) using the newly built gcc of riscv toolchain. This compiled binary (bsg-addons/tests/bsg_hello.rv) is run over the proxy kernel (pk) on the golden spike model of rocket core (which is a functionally exact simulator). Both the proxy kernel and spike objects are also a result of the riscv toolchain build.  A “success!” message will be flashed after successful compilation and execution of bsg_hello on spike pk, thereby implying that all components of the build were successful. 
+
+
+Build and Test the RISC-V toolchain for Linux:
+This appends the toolchain that compiles programs for linux, additionally over the previous installation.
+
+$ make build-riscv-tools-linux
+
+You may test the newly built components by following steps:
+
+1. Compile all test cases (bsg-addons/tests/*.c) using the new riscv gcc (for linux) and place them (bsg-addons/tests/*.o) in the /bin folder of our pre-built riscv root file system. This step requires root privileges on the host machine in order to perform a writable mount of the file system on the host. It will create a new directory called 'mount' in your root~. Please enter the root password to proceed!
+
+Note- We are working on a way to do these mounts from userspace. Until then we request you to bear with it.
+
+$ make spike-linux-test-setup
+
+2. Using the newly modified root file system, boot linux on spike with our pre-built linux kernel image (which we have pre-configured with a bunch of essential utilities from busybox like ash, ls, rm, pwd, cp, chmod etc). 
+
+$ make spike-linux-test
+
+3. Run the hello world program on riscv linux (Note: The command prompt after booting linux on RISC-V is denoted by the '#' symbol)
+
+# bsg_hello
+
+4. Explore binaries available in the /bin area. All “bsg_*” are our in-house test cases which you just compiled using the newly built riscv linux toolchain. Since we added the /bin area in the PATH as a part of the init boot sequence, these programs may be run from anywhere. For example, bsg_user_add takes 2 inputs from the user and produces the sum as a result.
+
+# bsg_user_add 
+
+5. Having tested out the components built in this build, gracefully shutdown the system.
+# poweroff
+
+
+Build and Test a RISC-V system with an integrated SHA3 accelerator:
+(To be documented)
+
+
+Run an RTL simulation of RISC-V system with a SHA3 accelerator:
+(To be documented)
+
+
+References
+1. https://github.com/riscv/riscv-tools
+2. https://github.com/ucb-bar/rocket-chip
+3. http://www.lowrisc.org/docs/untether-v0.2/
