@@ -95,11 +95,11 @@ build-riscv-tools-newlib:
 	@echo "#Compiling test code $(notdir $<).."
 	riscv64-unknown-elf-gcc -o $@ $<
 
-#echo '#include <stdio.h>' > $(BSG_TESTS)/hello.c
-#echo ' int main(void) { printf("Hello world!\n"); return 0; }' >> $(BSG_TESTS)/hello.c
-#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/hello.rv $(BSG_TESTS)/hello.c
+#echo '#include <stdio.h>' > $(BSG_TESTS)/bsg_hello.c
+#echo ' int main(void) { printf("Hello world!\n"); return 0; }' >> $(BSG_TESTS)/bsg_hello.c
+#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/bsg_hello.rv $(BSG_TESTS)/bsg_hello.c
 
-test-spike-hello: $(BSG_TESTS)/hello.rv
+test-spike-hello: $(BSG_TESTS)/bsg_hello.rv
 	@echo
 	@echo "#Running $(notdir $<) on spike with pk.."
 	spike pk $<
@@ -143,7 +143,7 @@ spike-linux-test-setup: $(TEST_OBJS)
 spike-linux-test:
 	@echo
 	@echo "#Booting linux on RISC-V (spike).."
-	cd $(RISCV_LINUX); spike +disk=root.bin $(RISCV)/riscv64-unknown-linux-gnu/bin/bbl vmlinux
+	cd $(RISCV_LINUX); spike +disk=root.bin bbl vmlinux
 
 #fetch-riscv-linux:
 #	make -C rocket-chip/fpga-zynq/zybo fetch-riscv-linux-deliver
@@ -154,6 +154,9 @@ clean-all:
 	rm -rf riscv-install
 
 test-clean:
+	rm -rf $(BSG_TESTS)/*.o
+	rm -rf $(BSG_TESTS)/*.rv
+	rm -rf $(RISCV_LINUX)/root.bin
 
 emulator-tests: 
 	cd rocket-chip/emulator; make clean
