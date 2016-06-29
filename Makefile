@@ -27,6 +27,7 @@ export TEST_OBJS=$(TEST_SRCS:.c=.o)
 export RISCV_LINUX = $(BSG_REPO)/riscv-linux
 export BSG_SCRIPTS = $(BSG_REPO)/scripts
 export ROOT_MNT = /root/mount-dir/mnt
+export SHA_TESTS = $(TOP)/rocket-chip/sha3/tests
 
 export LM_LICENSE_FILE      = 27000@bbfs-00.calit2.net
 export SNPSLMD_LICENSE_FILE = $(LM_LICENSE_FILE)
@@ -127,7 +128,7 @@ test-spike-rocc-linux:
 %.o: %.c
 	@echo
 	@echo "#Compiling test code $(notdir $<).."
-	riscv64-unknown-linux-gnu-gcc -static -o $@ $<
+	riscv64-unknown-linux-gnu-gcc -static -I. -o $@ $<
 
 spike-linux-test-setup: $(TEST_OBJS) 
 	@echo
@@ -178,7 +179,7 @@ emulator-rocc-linux:
 	cd rocket-chip/emulator; make CONFIG=RoccExampleConfig
 	cd rocket-chip/emulator; make CONFIG=RoccExampleConfig run-asm-tests
 	cd rocket-chip/emulator; make CONFIG=RoccExampleConfig run-bmark-tests	
-#	cd rocket-chip/emulator; ./emulator-Top-RoccExampleConfig pk $(ROCKET-CHIP)/riscv-tools/riscv-isa-sim/dummy_rocc/dummy_rocc_test.rv +dramsim
+	#	cd rocket-chip/emulator; ./emulator-Top-RoccExampleConfig pk $(ROCKET-CHIP)/riscv-tools/riscv-isa-sim/dummy_rocc/dummy_rocc_test.rv +dramsim
 	cd rocket-chip/emulator; time ./emulator-Top-RoccExampleConfig +dramsim +max-cycles=1000000000 +verbose \
 	  +disk=../../linux_zedboard/root.bin \
 		 	bbl ../../linux_zedboard/vmlinux \
@@ -189,43 +190,69 @@ rocket-chip/rocc-template:
 
 build-sha: rocket-chip/rocc-template
 	cd rocket-chip/rocc-template; ./install-symlinks
+	-rm -rf rocket-chip/riscv-tools/riscv-isa-sim/build-sha
 	mkdir -p rocket-chip/riscv-tools/riscv-isa-sim/build-sha
-	cd rocket-chip/riscv-tools/riscv-isa-sim/build-sha; ../configure --prefix=$(RISCV) --with-fesvr=$(RISCV) | tee config.log
-	cd rocket-chip/riscv-tools; ./build-spike-only.sh
-	make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha
-	make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha install
+	cd rocket-chip/riscv-tools/riscv-isa-sim; cp configure configure.old
+	cd rocket-chip/riscv-tools/riscv-isa-sim; autoreconf -i
+	#cd rocket-chip/riscv-tools; ./build-spike-only.sh
+	cd rocket-chip/riscv-tools/riscv-isa-sim/build-sha; ../configure --prefix=$(RISCV) --with-fesvr=$(RISCV)
+	make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha > rocket-chip/riscv-tools/$@.logq
+	make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha install >> rocket-chip/riscv-tools/$@.log
 
 clean-sha:
 	rm rocket-chip/src/main/scala/PrivateConfigs.scala
-	cd rocket-chip/riscv-tools/riscv-isa-sim; rm sha3 riscv-sha3.pc.in configure.ac; mv configure.ac.old configure.ac
+	cd rocket-chip/riscv-tools/riscv-isa-sim; rm sha3 riscv-sha3.pc.in configure.ac; mv configure.ac.old configure.ac; mv configure.old configure
 	cd rocket-chip; rm sha3 Makefrag; mv Makefrag.old Makefrag
 	cd rocket-chip/riscv-tools/riscv-isa-sim; rm -rf build-sha; #build; 
-	mkdir -p rocket-chip/riscv-tools/riscv-isa-sim/build 
-	#cd rocket-chip/riscv-tools/riscv-isa-sim/build; ../configure --prefix=$(RISCV) --with-fesvr=$(RISCV) | tee config.log; 
-	#make -C rocket-chip/riscv-tools/riscv-isa-sim/build | tee $@.log ;
-	make -C rocket-chip/riscv-tools/riscv-isa-sim/build install ;
-	
-emulator-sha:
+	#TODO: make build-sha replace build directory and clean-sha recreate it
+
+test-spike-sha: $(SHA_TESTS)/sha3-rocc.rv
+	spike --extension=sha3 pk $<
+
+test-sha-linux-setup:
+	cp $(SHA_TESTS)/* $(BSG_TESTS)
+	make spike-linux-test-setup
+
+test-spike-sha-linux:
+	cd $(RISCV_LINUX); spike --extension=sha3 +disk=root.bin bbl vmlinux
+
+#cd rocket-chip/emulator; ./emulator-Top-Sha3CPPConfig pk ../sha3/tests/sha3-sw.rv +dramsim
+emulator-sha: $(SHA_TESTS)/sha3-rocc.rv
 	cd rocket-chip/emulator; make clean
 	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig;
 # can use -j 4 here
 	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-asm-tests
 	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-bmark-tests
-# to test software and hardware aacelerated implementations of sha3
-	cd rocket-chip/emulator; ./emulator-Top-Sha3CPPConfig pk ../sha3/tests/sha3-sw.rv +dramsim
-	cd rocket-chip/emulator; ./emulator-Top-Sha3CPPConfig pk ../sha3/tests/sha3-rocc.rv +dramsim
+# to test hardware acelerated implementations of sha3 vs the sha3 software algorithm
+	cd rocket-chip/emulator; ./emulator-Top-Sha3CPPConfig pk $< +dramsim
 
-#	cd rocket-chip/emulator; make clean
-#	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig;
 emulator-sha-linux:
-	cd rocket-chip/emulator; ./emulator-Top-Sha3CPPConfig +dramsim +max-cycles=1000000000 +verbose \
-	  +disk=../../linux-4.1.17/root.bin \
-		  ../../linux-4.1.17/vmlinux \
-			  3>&1 1>&2 2>&3 | spike-dasm  > /dev/null
+	cd rocket-chip/emulator; make clean
+	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig
+	cd rocket-chip/emulator; time ./emulator-Top-Sha3CPPConfig +dramsim +max-cycles=1000000000 +verbose \
+	  +disk=$(RISCV_LINUX)/root.bin \
+		  bbl $(RISCV_LINUX)/vmlinux \
+			  3>&1 1>&2 2>&3 | spike-dasm  > $@.out
+
+verilog-run-sha: $(SHA_TESTS)/sha3-rocc.rv
+	make -C rocket-chip/vsim clean
+	make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig
+	make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig run
+	#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/sha3-rocc.rv $(ROCKETCHIP)/sha3/tests/sha3-rocc.c
+	cd rocket-chip/vsim && ./simv-Top-Sha3VLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+
+verilog-sha-linux:
+	make -C rocket-chip/vsim clean
+	make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig
+	#make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig run
+	cd rocket-chip/vsim; time ./simv-Top-Sha3VLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV_LINUX)/root.bin bbl $(RISCV_LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+
+verilog-clean:
+	make -C rocket-chip/vsim clean
+
 
 emulator-debug:
 	cd rocket-chip/emulator; make debug
-
 
 verilog:
 	cd rocket-chip/vsim; make verilog
@@ -239,27 +266,15 @@ verilog:
 verilog-rocc:
 	cd rocket-chip/vsim; make CONFIG=RoccExampleConfig verilog
 
-verilog-clean:
-	make -C rocket-chip/vsim clean
-
 verilog-run: 
 	make -C rocket-chip/vsim clean
 	make -C rocket-chip/vsim
 	make -C rocket-chip/vsim run
-	
-verilog-run-linux: #verilog-run
-	cd rocket-chip/vsim; time ./simv-Top-DefaultVLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV_LINUX)/root.bin $(RISCV)/riscv64-unknown-elf/bin/bbl $(RISCV_LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
 verilog-run-rocc: verilog-clean
 	make -C rocket-chip/vsim CONFIG=RoccExampleConfig
 	#make -C rocket-chip/vsim CONFIG=RoccExampleConfig run
 	cd rocket-chip/vsim; time ./simv-Top-RoccExampleConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV_LINUX)/root.bin $(RISCV)/riscv64-unknown-elf/bin/bbl $(RISCV_LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > /dev/null
-
-verilog-run-sha: verilog-clean
-	make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig
-	make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig run
-	riscv64-unknown-elf-gcc -o sha3-rocc.rv $(ROCKETCHIP)/sha3/tests/sha3-rocc.c
-	cd rocket-chip/vsim && ./simv-Top-Sha3VLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk ../sha3/tests/sha3-rocc.rv 3>&1 1>&2 2>&3 > sha3.out
 
 verilog-debug: verilog-clean
 	make -C rocket-chip/vsim run-debug
