@@ -123,7 +123,7 @@ build-riscv-tools-linux:
 	CC= CXX= bash -c '$(BSG_SCRIPTS)/build-linux.sh > build.log'
 
 test-spike-rocc-linux:
-	cd linux_zedboard; spike --extension=dummy_rocc +disk=root.bin bbl vmlinux
+	cd $(RISCV_LINUX); spike --extension=dummy_rocc +disk=root.bin bbl vmlinux
 
 %.o: %.c
 	@echo
@@ -167,8 +167,8 @@ emulator-tests:
 
 emulator-linux: 
 	cd rocket-chip/emulator; time ./emulator-Top-DefaultCPPConfig +dramsim +max-cycles=1000000000 +verbose \
-	  +disk=../../linux_zedboard/root.bin \
-		 	bbl ../../linux_zedboard/vmlinux \
+	  +disk=$(RISCV_LINUX)/root.bin \
+		 	bbl $(RISCV_LINUX)/vmlinux \
 				3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
 emulator-rocc-linux:
@@ -177,16 +177,30 @@ emulator-rocc-linux:
 	#elf2hex 16 16384 dummy_rocc_test > dummy_rocc_test.hex
 	cd rocket-chip/emulator; make clean
 	cd rocket-chip/emulator; make CONFIG=RoccExampleConfig
-	cd rocket-chip/emulator; make CONFIG=RoccExampleConfig run-asm-tests
-	cd rocket-chip/emulator; make CONFIG=RoccExampleConfig run-bmark-tests	
+	#cd rocket-chip/emulator; make CONFIG=RoccExampleConfig run-asm-tests
+	#cd rocket-chip/emulator; make CONFIG=RoccExampleConfig run-bmark-tests	
 	#	cd rocket-chip/emulator; ./emulator-Top-RoccExampleConfig pk $(ROCKET-CHIP)/riscv-tools/riscv-isa-sim/dummy_rocc/dummy_rocc_test.rv +dramsim
 	cd rocket-chip/emulator; time ./emulator-Top-RoccExampleConfig +dramsim +max-cycles=1000000000 +verbose \
-	  +disk=../../linux_zedboard/root.bin \
-		 	bbl ../../linux_zedboard/vmlinux \
+	  +disk=$(RISCV_LINUX)/root.bin \
+		 	bbl $(RISCV_LINUX)/vmlinux \
 				3>&1 1>&2 2>&3 | spike-dasm > /dev/null
-	
-rocket-chip/rocc-template:
-	git clone -b update https://github.com/anujnr/rocc-template.git rocket-chip/rocc-template
+
+#rocket-chip/rocc-template:
+#	git clone -b update https://github.com/anujnr/rocc-template.git rocket-chip/rocc-template
+
+emulator-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
+	cd rocket-chip/emulator; make clean
+	cd rocket-chip/emulator; make CONFIG=RoccExampleConfig;
+# can use -j 4 here
+	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-asm-tests
+	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-bmark-tests
+# to test hardware acelerated implementations of sha3 vs the sha3 software algorithm
+	cd rocket-chip/emulator; ./emulator-Top-RoccExampleConfig pk -s $< #+dramsim
+
+verilog-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
+	make -C rocket-chip/vsim clean
+	make -C rocket-chip/vsim CONFIG=RoccExampleConfig
+	cd rocket-chip/vsim && ./simv-Top-RoccExampleConfig pk $< #-q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
 
 build-sha: rocket-chip/rocc-template
 	cd rocket-chip/rocc-template; ./install-symlinks
@@ -196,7 +210,7 @@ build-sha: rocket-chip/rocc-template
 	cd rocket-chip/riscv-tools/riscv-isa-sim; autoreconf -i
 	#cd rocket-chip/riscv-tools; ./build-spike-only.sh
 	cd rocket-chip/riscv-tools/riscv-isa-sim/build-sha; ../configure --prefix=$(RISCV) --with-fesvr=$(RISCV)
-	make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha > rocket-chip/riscv-tools/$@.logq
+	make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha > rocket-chip/riscv-tools/$@.log
 	make -C rocket-chip/riscv-tools/riscv-isa-sim/build-sha install >> rocket-chip/riscv-tools/$@.log
 
 clean-sha:
@@ -204,6 +218,7 @@ clean-sha:
 	cd rocket-chip/riscv-tools/riscv-isa-sim; rm sha3 riscv-sha3.pc.in configure.ac; mv configure.ac.old configure.ac; mv configure.old configure
 	cd rocket-chip; rm sha3 Makefrag; mv Makefrag.old Makefrag
 	cd rocket-chip/riscv-tools/riscv-isa-sim; rm -rf build-sha; #build; 
+	cd rocket-chip/riscv-tools; ./build-spike-only.sh
 	#TODO: make build-sha replace build directory and clean-sha recreate it
 
 test-spike-sha: $(SHA_TESTS)/sha3-rocc.rv
@@ -221,31 +236,33 @@ emulator-sha: $(SHA_TESTS)/sha3-rocc.rv
 	cd rocket-chip/emulator; make clean
 	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig;
 # can use -j 4 here
-	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-asm-tests
-	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-bmark-tests
+	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-asm-tests
+	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-bmark-tests
 # to test hardware acelerated implementations of sha3 vs the sha3 software algorithm
-	cd rocket-chip/emulator; ./emulator-Top-Sha3CPPConfig pk $< +dramsim
+	cd rocket-chip/emulator; ./emulator-Top-Sha3CPPConfig pk -s $< #+dramsim
 
+#4 hours
 emulator-sha-linux:
 	cd rocket-chip/emulator; make clean
 	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig
 	cd rocket-chip/emulator; time ./emulator-Top-Sha3CPPConfig +dramsim +max-cycles=1000000000 +verbose \
 	  +disk=$(RISCV_LINUX)/root.bin \
 		  bbl $(RISCV_LINUX)/vmlinux \
-			  3>&1 1>&2 2>&3 | spike-dasm  > $@.out
+			  3>&1 1>&2 2>&3 | spike-dasm  > /dev/null
 
 verilog-run-sha: $(SHA_TESTS)/sha3-rocc.rv
 	make -C rocket-chip/vsim clean
 	make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig
-	make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig run
+	#make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig run
 	#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/sha3-rocc.rv $(ROCKETCHIP)/sha3/tests/sha3-rocc.c
 	cd rocket-chip/vsim && ./simv-Top-Sha3VLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
 
+#9 hours
 verilog-sha-linux:
 	make -C rocket-chip/vsim clean
 	make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig
 	#make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig run
-	cd rocket-chip/vsim; time ./simv-Top-Sha3VLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV_LINUX)/root.bin bbl $(RISCV_LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+	cd rocket-chip/vsim; time ./simv-Top-Sha3VLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV_LINUX)/root.bin bbl $(RISCV_LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
 verilog-clean:
 	make -C rocket-chip/vsim clean
@@ -263,15 +280,13 @@ verilog:
 	@echo "# src/main/scala/PublicConfigs.scala sets base configuration-- can be overridden"
 	@echo "# --see ExampleSmallConfig--"
 
-verilog-rocc:
-	cd rocket-chip/vsim; make CONFIG=RoccExampleConfig verilog
-
 verilog-run: 
 	make -C rocket-chip/vsim clean
 	make -C rocket-chip/vsim
 	make -C rocket-chip/vsim run
 
-verilog-run-rocc: verilog-clean
+verilog-run-rocc:
+	make -C rocket-chip/vsim clean
 	make -C rocket-chip/vsim CONFIG=RoccExampleConfig
 	#make -C rocket-chip/vsim CONFIG=RoccExampleConfig run
 	cd rocket-chip/vsim; time ./simv-Top-RoccExampleConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV_LINUX)/root.bin $(RISCV)/riscv64-unknown-elf/bin/bbl $(RISCV_LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > /dev/null
