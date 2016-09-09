@@ -1,0 +1,39 @@
+--- build.common.old	2016-09-08 01:00:06.541491584 -0400
++++ build.common	2016-09-08 01:29:34.617086046 -0400
+@@ -9,6 +9,12 @@
+   exit 1
+ fi
+ 
++PATCHES_EXIST=1
++if [ "x$PATCHES_DIR" = "x" ]
++then
++  PATCHES_EXIST=0
++fi
++
+ # Use gmake instead of make if it exists.
+ MAKE=`command -v gmake || command -v make`
+ 
+@@ -24,6 +30,23 @@
+     echo "Removing existing $1/build directory"
+     rm -rf $1/build
+   fi
++  if [ $PATCHES_EXIST -eq 1 ]; then
++    if [ -e "$PATCHES_DIR/$1/configure.ac.patch" ]; then
++      echo "  Patching configure.ac for $1"
++      (stat $1/configure.ac.old >/dev/null 2>&1) || cp $1/configure.ac $1/configure.ac.old
++      (patch -N --dry-run $1/configure.ac $PATCHES_DIR/$1/configure.ac.patch >/dev/null 2>&1) && \
++        patch $1/configure.ac $PATCHES_DIR/$1/configure.ac.patch  >/dev/null 2>&1
++    fi
++    if [ -e "$PATCHES_DIR/$1/Makefile.in.patch" ]; then
++      echo "  Patching Makefile.in  for $1"
++      (stat $1/Makefile.in.old >/dev/null 2>&1) || cp $1/Makefile.in $1/Makefile.in.old
++      (patch -N --dry-run $1/Makefile.in $PATCHES_DIR/$1/Makefile.in.patch >/dev/null 2>&1) && \
++        patch $1/Makefile.in $PATCHES_DIR/$1/Makefile.in.patch >/dev/null 2>&1
++    fi
++  fi
++  cd $1
++  autoconf
++  cd -
+   mkdir -p $1/build
+   cd $1/build
+   echo "Configuring project $1"

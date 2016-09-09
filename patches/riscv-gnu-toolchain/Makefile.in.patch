@@ -1,0 +1,27 @@
+--- Makefile.in.old	2016-09-07 00:05:58.689044790 -0400
++++ Makefile.in	2016-09-07 01:28:28.288364223 -0400
+@@ -94,13 +94,20 @@
+ 	$(MAKE) stamps/build-gcc-linux-stage2 XLEN=64
+ endif
+ 
+-$(addprefix src/original-,$(PACKAGES)):
++../downloads/%.tar.gz.bak:
++	mkdir -p ../downloads
++	@FETCHER@ @FETCHER_OUTPUT@ $@ $($(subst .tar.gz.bak,,$(subst ../downloads/,,$@))_url)
++
++../downloads/%.tar.gz: ../downloads/%.tar.gz.bak
++	mv $< $@
++
++src/original-%: ../downloads/%.tar.gz
+ 	mkdir -p src
+-	rm -rf $@ $(subst original-,,$@)-*
+-	cd src && (cat $(DISTDIR)/$(subst src/original-,,$@)-$($(subst src/original-,,$@)_version).tar.gz || @FETCHER@ $($(subst src/original-,,$@)_url)) | tar zxf -
++	rm -rf $@ $(subst original-,,$@)*
++	tar zxf $< -C src/
+ 	mv $(subst original-,,$@)-$($(subst src/original-,,$@)_version) $@
+ 
+-$(addprefix src/,$(PACKAGES)): src/%: src/original-%
++src/%: src/original-%
+ 	rm -rf $@ $@.tmp
+ 	cp -a $< $@.tmp
+ 	$(srcdir)/scripts/cp_s $(srcdir)/$(notdir $@) $@.tmp
