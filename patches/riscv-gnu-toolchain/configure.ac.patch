@@ -1,0 +1,18 @@
+--- configure.ac.old	2016-09-07 00:03:31.023472770 -0400
++++ configure.ac	2016-09-07 00:05:50.192184467 -0400
+@@ -32,11 +32,12 @@
+ AC_PATH_PROG([CURL], [curl], [no])
+ AC_PATH_PROG([WGET], [wget], [no])
+ AC_PATH_PROG([FTP], [ftp], [no])
+-AS_IF([test x"$CURL" != xno], [FETCHER="$CURL -o - --ftp-pasv"],
+-	[test x"$WGET" != xno], [FETCHER="$WGET -O -"],
+-	[test x"$FTP" != xno], [FETCHER="$FTP -o - -p"],
++AS_IF([test x"$CURL" != xno], [FETCHER="$CURL --ftp-pasv"; FETCHER_OUTPUT="-o"],
++	[test x"$WGET" != xno], [FETCHER="$WGET"; FETCHER_OUTPUT="-O"],
++	[test x"$FTP" != xno], [FETCHER="$FTP -p"; FETCHER_OUTPUT="-o"],
+ 	[AC_MSG_ERROR([no file transfer utility found])])
+ AC_SUBST(FETCHER)
++AC_SUBST(FETCHER_OUTPUT)
+ 
+ AC_ARG_ENABLE(linux,
+         [AS_HELP_STRING([--enable-linux],

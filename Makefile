@@ -20,6 +20,7 @@
 #
 export TOP = $(PWD)
 export RISCV = $(TOP)/riscv-install
+export PATCHES_DIR = $(TOP)/patches
 export BSG_REPO = $(TOP)/bsg-addons
 export BSG_TESTS = $(BSG_REPO)/tests
 export TEST_SRCS= $(wildcard $(BSG_TESTS)/*.c)
@@ -56,13 +57,21 @@ nothing:
 	riscv64-unknown-elf-gcc -o $(BSG_TESTS)/hello.rv $(BSG_TESTS)/hello.c
 	riscv64-unknown-linux-gnu-gcc -o $(BSG_TESTS)/hello.o $(BSG_TESTS)/hello.c
 
-checkout-all:
+rocket-chip:
 	@echo
 	@echo "#Cloning repositories recursively.."
-	git clone https://github.com/ucb-bar/rocket-chip.git
-	cd rocket-chip; git checkout ba96ad2b383a97a15b2d95b1acfd551f576c8faa #hurricane chip tape-out tag 
-	cd rocket-chip; git submodule update --init --recursive
-	cd rocket-chip/riscv-tools;     git submodule update --init --recursive
+	@git clone https://github.com/ucb-bar/rocket-chip.git
+	@cd rocket-chip; git checkout ba96ad2b383a97a15b2d95b1acfd551f576c8faa #hurricane chip tape-out tag 
+	@cd rocket-chip; git submodule update --init --recursive
+	@cd rocket-chip/riscv-tools; git submodule update --init --recursive
+	
+
+checkout-all: rocket-chip
+	@echo
+	@echo "#Checking repositories"
+	@echo "#Patching building system"
+	@(stat rocket-chip/riscv-tools/build.common.old > /dev/null 2>&1) || cp rocket-chip/riscv-tools/build.common rocket-chip/riscv-tools/build.common.old
+	@(((patch --dry-run -N rocket-chip/riscv-tools/build.common patches/build.common.patch) > /dev/null 2>&1) && patch -N rocket-chip/riscv-tools/build.common patches/build.common.patch) || echo "#Patch already applied ... skipping!"
 
 # XXXX various warnings for build-riscv-tools below:
 #configure: WARNING: using in-tree ISL, disabling version check
@@ -185,8 +194,8 @@ emulator-rocc-linux:
 		 	bbl $(RISCV_LINUX)/vmlinux \
 				3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
-#rocket-chip/rocc-template:
-#	git clone -b update https://github.com/anujnr/rocc-template.git rocket-chip/rocc-template
+rocket-chip/rocc-template:
+	git clone -b update https://github.com/anujnr/rocc-template.git rocket-chip/rocc-template
 
 emulator-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 	cd rocket-chip/emulator; make clean
