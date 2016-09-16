@@ -18,24 +18,24 @@
 #
 #
 #
-export TOP = $(PWD)
-export RISCV = $(TOP)/riscv-install
-export PATCHES_DIR = $(TOP)/patches
-export BSG_REPO = $(TOP)/bsg-addons
-export BSG_TESTS = $(BSG_REPO)/tests
-export TEST_SRCS= $(wildcard $(BSG_TESTS)/*.c)
+export TOP=$(PWD)
+export RISCV=$(TOP)/riscv-install
+export PATCHES_DIR=$(TOP)/patches
+export BSG_REPO=$(TOP)/bsg-addons
+export BSG_TESTS=$(BSG_REPO)/tests
+export TEST_SRCS=$(wildcard $(BSG_TESTS)/*.c)
 export TEST_OBJS=$(TEST_SRCS:.c=.o)
-export RISCV_LINUX = $(BSG_REPO)/riscv-linux
-export BSG_SCRIPTS = $(BSG_REPO)/scripts
-export ROOT_MNT = /root/mount-dir/mnt
-export SHA_TESTS = $(TOP)/rocket-chip/sha3/tests
+export RISCV_LINUX=$(BSG_REPO)/riscv-linux
+export BSG_SCRIPTS=$(BSG_REPO)/scripts
+export ROOT_MNT=/root/mount-dir/mnt
+export SHA_TESTS=$(TOP)/rocket-chip/sha3/tests
 
-export LM_LICENSE_FILE      = 27000@bbfs-00.calit2.net
-export SNPSLMD_LICENSE_FILE = $(LM_LICENSE_FILE)
-export SYNOPSYS_DIR=/gro/cad/synopsys
-export VCS_RELEASE=vcs/J-2014.12-SP2
-export VCS_BIN       = $(SYNOPSYS_DIR)/$(VCS_RELEASE)/bin
-export VCS_HOME      = $(SYNOPSYS_DIR)/$(VCS_RELEASE)
+export LM_LICENSE_FILE?=27000@bbfs-00.calit2.net
+export SNPSLMD_LICENSE_FILE?=$(LM_LICENSE_FILE)
+export SYNOPSYS_DIR?=/gro/cad/synopsys
+export VCS_RELEASE?=vcs/J-2014.12-SP2
+export VCS_BIN?=$(SYNOPSYS_DIR)/$(VCS_RELEASE)/bin
+export VCS_HOME?=$(SYNOPSYS_DIR)/$(VCS_RELEASE)
 PATH:=$(RISCV)/bin:/opt/rh/devtoolset-2/root/usr/bin:$(PATH):$(VCS_BIN)
 
 export CC=/opt/rh/devtoolset-2/root/usr/bin/gcc
