@@ -195,7 +195,7 @@ emulator-rocc-linux:
 				3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
 rocket-chip/rocc-template:
-	git clone -b update https://github.com/anujnr/rocc-template.git rocket-chip/rocc-template
+	git clone https://bitbucket.org/taylor-bsg/bsg_riscv_rocc.git rocket-chip/rocc-template
 
 emulator-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 	cd rocket-chip/emulator; make clean
