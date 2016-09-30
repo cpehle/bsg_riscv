@@ -23,6 +23,7 @@ export RISCV=$(TOP)/riscv-install
 export PATCHES_DIR=$(TOP)/patches
 export BSG_REPO=$(TOP)/bsg-addons
 export BSG_TESTS=$(BSG_REPO)/tests
+export BSG_ACCEL_TESTS=$(TOP)/rocket-chip/bsg-accel/tests
 export TEST_SRCS=$(wildcard $(BSG_TESTS)/*.c)
 export TEST_OBJS=$(TEST_SRCS:.c=.o)
 export RISCV_LINUX=$(BSG_REPO)/riscv-linux
@@ -195,7 +196,10 @@ emulator-rocc-linux:
 				3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
 rocket-chip/rocc-template:
-	git clone https://bitbucket.org/taylor-bsg/bsg_riscv_rocc.git rocket-chip/rocc-template
+	git clone https://bitbucket.org/taylor-bsg/bsg_riscv_rocc.git $@
+
+rocket-chip/bsg-accel:
+	git clone https://github.com/anujnr/bsg_accel.git $@
 
 emulator-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 	cd rocket-chip/emulator; make clean
@@ -266,6 +270,16 @@ verilog-run-sha: $(SHA_TESTS)/sha3-rocc.rv
 	#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/sha3-rocc.rv $(ROCKETCHIP)/sha3/tests/sha3-rocc.c
 	cd rocket-chip/vsim && ./simv-Top-Sha3VLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
 
+build-bsg-accel: rocket-chip/bsg-accel
+	cd $<; ./install-symlinks 
+
+verilog-run-acc: $(BSG_ACCEL_TESTS)/sha3-accum.rv
+	make -C rocket-chip/vsim clean
+	make -C rocket-chip/vsim CONFIG=BsgAccelVLSIConfig
+	#make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig run
+	#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/sha3-rocc.rv $(ROCKETCHIP)/sha3/tests/sha3-rocc.c
+	cd rocket-chip/vsim && ./simv-Top-BsgAccelVLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+
 #9 hours
 verilog-sha-linux:
 	make -C rocket-chip/vsim clean
@@ -275,7 +289,6 @@ verilog-sha-linux:
 
 verilog-clean:
 	make -C rocket-chip/vsim clean
-
 
 emulator-debug:
 	cd rocket-chip/emulator; make debug
@@ -291,8 +304,8 @@ verilog:
 
 verilog-run: 
 	make -C rocket-chip/vsim clean
-	make -C rocket-chip/vsim
-	make -C rocket-chip/vsim run
+	make -C rocket-chip/vsim 
+	make -C rocket-chip/vsim run 
 
 verilog-run-rocc:
 	make -C rocket-chip/vsim clean
