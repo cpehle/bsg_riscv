@@ -39,8 +39,10 @@ export VCS_BIN?=$(SYNOPSYS_DIR)/$(VCS_RELEASE)/bin
 export VCS_HOME?=$(SYNOPSYS_DIR)/$(VCS_RELEASE)
 PATH:=$(RISCV)/bin:/opt/rh/devtoolset-2/root/usr/bin:$(PATH):$(VCS_BIN)
 
-export CC=/opt/rh/devtoolset-2/root/usr/bin/gcc
-export CXX=/opt/rh/devtoolset-2/root/usr/bin/g++
+#export CC=/opt/rh/devtoolset-2/root/usr/bin/gcc
+export CC=/usr/bin/gcc
+#export CXX=/opt/rh/devtoolset-2/root/usr/bin/g++
+export CXX=/usr/bin/g++
 export SED=sed
 export PATH
 export SHELL:=$(SHELL)
@@ -248,10 +250,6 @@ test-spike-sha-linux:
 emulator-sha: $(SHA_TESTS)/sha3-rocc.rv
 	cd rocket-chip/emulator; make clean
 	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig;
-# can use -j 4 here
-	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-asm-tests
-	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-bmark-tests
-# to test hardware acelerated implementations of sha3 vs the sha3 software algorithm
 	cd rocket-chip/emulator; ./emulator-Top-Sha3CPPConfig pk -s $< #+dramsim
 
 #4 hours
@@ -273,12 +271,27 @@ verilog-run-sha: $(SHA_TESTS)/sha3-rocc.rv
 build-bsg-accel: rocket-chip/bsg-accel
 	cd $<; ./install-symlinks 
 
-verilog-run-acc: $(BSG_ACCEL_TESTS)/sha3-accum.rv
+clean-bsg-accel: 
+	-mv $(TOP)/rocket-chip/Makefrag.old $(TOP)/rocket-chip/Makefrag 2>/dev/null
+	-rm $(TOP)/rocket-chip/src/main/scala/PrivateConfigs.scala
+	-rm $(TOP)/rocket-chip/sha3-accel
+	-patch -Rf $(TOP)/rocket-chip/vsim/Makefile $(TOP)/rocket-chip/bsg-accel/patches/vsim/Makefile.patch	
+	-patch -Rf $(TOP)/rocket-chip/vsim/Makefrag $(TOP)/rocket-chip/bsg-accel/patches/vsim/Makefrag.patch	
+
+verilog-run-acc: $(BSG_ACCEL_TESTS)/$(test).rv
 	make -C rocket-chip/vsim clean
-	make -C rocket-chip/vsim CONFIG=BsgAccelVLSIConfig
-	#make -C rocket-chip/vsim CONFIG=Sha3VLSIConfig run
-	#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/sha3-rocc.rv $(ROCKETCHIP)/sha3/tests/sha3-rocc.c
-	cd rocket-chip/vsim && ./simv-Top-BsgAccelVLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+	make -C rocket-chip/vsim CONFIG=Bsg$(num)AccelVLSIConfig
+	cd rocket-chip/vsim && ./simv-Top-Bsg$(num)AccelCPPConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $<
+
+emulator-bsg-accel: $(BSG_ACCEL_TESTS)/sha3-accum.rv
+	make -C rocket-chip/emulator clean
+	make -C rocket-chip/emulator CONFIG=Bsg$(num)AccelCPPConfig 
+	cd rocket-chip/emulator && ./emulator-Top-Bsg$(num)AccelCPPConfig -q +ntb_random_seed_automatic +dramsim +max-cycles=100000000 pk -s $<
+
+emulator-hurricane: $(SHA_TESTS)/sha3-rocc.rv
+	cd rocket-chip/emulator; make clean
+	cd rocket-chip/emulator; make CONFIG=HurricaneSha3Config;
+	cd rocket-chip/emulator && ./emulator-Top-HurricaneSha3Config -q +ntb_random_seed_automatic +dramsim +max-cycles=100000000 pk -s $<
 
 #9 hours
 verilog-sha-linux:
@@ -294,10 +307,11 @@ emulator-debug:
 	cd rocket-chip/emulator; make debug
 
 verilog:
+	cd rocket-chip/vsim; make clean
 	cd rocket-chip/vsim; make verilog
-	grep "^module" rocket-chip/vsim/generated-src/Top.DefaultVLSIConfig.v
+	grep "^module" rocket-chip/vsim/generated-src/Top.$(CONFIG).v
 	@echo "# See rocket-chip/vsim/generated-src for outputed source."
-	@echo "# Behavorial SRAMs have been appended to end of vsim/generated-src/Top.DefaultVLSIConfig.v"
+	@echo "# Behavorial SRAMs have been appended to end of vsim/generated-src/Top.$(CONFIG).v"
 	@echo "# unless $(mem_gen) script is changed."
 	@echo "# src/main/scala/PublicConfigs.scala sets base configuration-- can be overridden"
 	@echo "# --see ExampleSmallConfig--"
