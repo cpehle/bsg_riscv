@@ -210,7 +210,17 @@ emulator-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-asm-tests
 	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-bmark-tests
 # to test hardware acelerated implementations of sha3 vs the sha3 software algorithm
-	cd rocket-chip/emulator; ./emulator-Top-RoccExampleConfig pk -s $< #+dramsim
+	cd rocket-chip/emulator; ./emulator-Top-RoccExampleConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+
+
+emulator-hurricane-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
+	cd rocket-chip/emulator; make clean
+	cd rocket-chip/emulator; make CONFIG=HurricaneRoccCPPConfig;
+# can use -j 4 here
+	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-asm-tests
+	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-bmark-tests
+# to test hardware acelerated implementations of sha3 vs the sha3 software algorithm
+	cd rocket-chip/emulator; ./emulator-Top-HurricaneRoccCPPConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
 
 verilog-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 	make -C rocket-chip/vsim clean
@@ -281,17 +291,17 @@ clean-bsg-accel:
 verilog-run-acc: $(BSG_ACCEL_TESTS)/$(test).rv
 	make -C rocket-chip/vsim clean
 	make -C rocket-chip/vsim CONFIG=Bsg$(num)AccelVLSIConfig
-	cd rocket-chip/vsim && ./simv-Top-Bsg$(num)AccelCPPConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $<
+	cd rocket-chip/vsim && ./simv-Top-Bsg$(num)AccelVLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $<
 
 emulator-bsg-accel: $(BSG_ACCEL_TESTS)/sha3-accum.rv
 	make -C rocket-chip/emulator clean
 	make -C rocket-chip/emulator CONFIG=Bsg$(num)AccelCPPConfig 
 	cd rocket-chip/emulator && ./emulator-Top-Bsg$(num)AccelCPPConfig -q +ntb_random_seed_automatic +dramsim +max-cycles=100000000 pk -s $<
 
-emulator-hurricane: $(SHA_TESTS)/sha3-rocc.rv
+emulator-hurricane-sha3: $(SHA_TESTS)/sha3-rocc.rv
 	cd rocket-chip/emulator; make clean
-	cd rocket-chip/emulator; make CONFIG=HurricaneSha3Config;
-	cd rocket-chip/emulator && ./emulator-Top-HurricaneSha3Config -q +ntb_random_seed_automatic +dramsim +max-cycles=100000000 pk -s $<
+	cd rocket-chip/emulator; make CONFIG=HurricaneSha3CPPConfig;
+	cd rocket-chip/emulator && ./emulator-Top-HurricaneSha3CPPConfig -q +ntb_random_seed_automatic +dramsim +max-cycles=100000000 pk -s $<
 
 #9 hours
 verilog-sha-linux:
