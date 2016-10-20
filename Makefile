@@ -64,7 +64,7 @@ rocket-chip:
 	@echo
 	@echo "#Cloning repositories recursively.."
 	@git clone https://github.com/ucb-bar/rocket-chip.git
-	@cd rocket-chip; git checkout ba96ad2b383a97a15b2d95b1acfd551f576c8faa #hurricane chip tape-out tag 
+	@cd rocket-chip; git checkout ba96ad2b383a97a15b2d95b1acfd551f576c8faa -b bsg_hurricane #hurricane chip tape-out tag
 	@cd rocket-chip; git submodule update --init --recursive
 	@cd rocket-chip/riscv-tools; git submodule update --init --recursive
 	
