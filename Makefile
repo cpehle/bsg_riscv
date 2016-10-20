@@ -151,7 +151,7 @@ spike-linux-test-setup: $(TEST_OBJS)
 					$(foreach i, $(TEST_OBJS), cp $(i) $(ROOT_MNT)/bin/$(basename $(notdir $(i)));) \
 					umount $(ROOT_MNT); \
 					cd $(ROOT_MNT)/../; \
-					su anr044 -c "cp root.bin $(RISCV_LINUX)"'
+					su -c "cp root.bin $(RISCV_LINUX)"'
 
 spike-linux-test:
 	@echo
