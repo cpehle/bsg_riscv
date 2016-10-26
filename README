@@ -2,9 +2,7 @@
 
 BSG-RISCV README
 
-Please see this link for documentation:
-
-https://docs.google.com/document/d/1dAtN7R43UyG7cs2LEioMWZh0RTFyXXoc3wWDJ1jCAG4/edit?usp=sharing
+Please see this [link](https://docs.google.com/document/d/1dAtN7R43UyG7cs2LEioMWZh0RTFyXXoc3wWDJ1jCAG4/edit?usp=sharing) for documentation
 
 See the Rocc Doc V2 for more details on how to make use of the RoCC accelerator interface:
 
