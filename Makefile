@@ -31,7 +31,7 @@ export BSG_SCRIPTS=$(BSG_REPO)/scripts
 export ROOT_MNT=/root/mount-dir/mnt
 export SHA_TESTS=$(TOP)/rocket-chip/sha3/tests
 
-export LM_LICENSE_FILE?=27000@bbfs-00.calit2.net
+export LM_LICENSE_FILE?=27020@132.239.15.56
 export SNPSLMD_LICENSE_FILE?=$(LM_LICENSE_FILE)
 export SYNOPSYS_DIR?=/gro/cad/synopsys
 export VCS_RELEASE?=vcs/J-2014.12-SP2
@@ -39,10 +39,10 @@ export VCS_BIN?=$(SYNOPSYS_DIR)/$(VCS_RELEASE)/bin
 export VCS_HOME?=$(SYNOPSYS_DIR)/$(VCS_RELEASE)
 PATH:=$(RISCV)/bin:/opt/rh/devtoolset-2/root/usr/bin:$(PATH):$(VCS_BIN)
 
-#export CC=/opt/rh/devtoolset-2/root/usr/bin/gcc
-export CC=/usr/bin/gcc
-#export CXX=/opt/rh/devtoolset-2/root/usr/bin/g++
-export CXX=/usr/bin/g++
+export CC=/opt/rh/devtoolset-2/root/usr/bin/gcc
+#export CC=/usr/bin/gcc
+export CXX=/opt/rh/devtoolset-2/root/usr/bin/g++
+#export CXX=/usr/bin/g++
 export SED=sed
 export PATH
 export SHELL:=$(SHELL)
