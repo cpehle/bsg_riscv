@@ -2,5 +2,5 @@ rocket-chip
 riscv-install
 *.o
 *.rv
-*.log
+*log
 root.bin
