@@ -1,0 +1,83 @@
+diff --git a/src/main/scala/tile.scala b/src/main/scala/tile.scala
+index a7bfeec..490f9fc 100644
+--- a/src/main/scala/tile.scala
++++ b/src/main/scala/tile.scala
+@@ -34,6 +34,7 @@ abstract class Tile(resetSignal: Bool = null)
+     val uncached = Vec(nUncachedTileLinkPorts, new ClientUncachedTileLinkIO)
+     val host = new HtifIO
+     val dma = new DmaIO
++		val rocc = Vec(nRocc, new RoCCInterface).flip
+   }
+ }
+ 
+@@ -75,7 +76,7 @@ class RocketTile(resetSignal: Bool = null)(implicit p: Parameters) extends Tile(
+     val roccOpcodes = buildRocc.map(_.opcodes)
+     val cmdRouter = Module(new RoccCommandRouter(roccOpcodes))
+     cmdRouter.io.in <> core.io.rocc.cmd
+-
++/*
+     val roccs = buildRocc.zipWithIndex.map { case (accelParams, i) =>
+       val rocc = accelParams.generator(p.alterPartial({
+         case RoccNMemChannels => accelParams.nMemChannels
+@@ -92,13 +93,25 @@ class RocketTile(resetSignal: Bool = null)(implicit p: Parameters) extends Tile(
+       uncachedArb.io.in(1 + i) <> rocc.io.autl
+       rocc
+     }
++*/
++    val roccs = buildRocc.zipWithIndex.map { case (accelParams, i) =>
++      val dcIF = Module(new SimpleHellaCacheIF()(dcacheParams))
++      io.rocc(i).cmd <> cmdRouter.io.out(i)
++      io.rocc(i).s := core.io.rocc.s
++      io.rocc(i).exception := core.io.rocc.exception
++      io.rocc(i).host_id := io.host.id
++      dcIF.io.requestor <> io.rocc(i).mem
++      dcArb.io.requestor(2 + i) <> dcIF.io.cache
++      uncachedArb.io.in(1 + i) <> io.rocc(i).autl
++      io.rocc(i)
++    }
+ 
+     if (nFPUPorts > 0) {
+       fpuOpt.foreach { fpu =>
+         val fpArb = Module(new InOrderArbiter(new FPInput, new FPResult, nFPUPorts))
+         val fp_roccs = roccs.zip(buildRocc)
+           .filter { case (_, params) => params.useFPU }
+-          .map { case (rocc, _) => rocc.io }
++          .map { case (rocc, _) => rocc }
+         fpArb.io.in_req <> fp_roccs.map(_.fpu_req)
+         fp_roccs.zip(fpArb.io.in_resp).foreach {
+           case (rocc, fpu_resp) => rocc.fpu_resp <> fpu_resp
+@@ -108,25 +121,25 @@ class RocketTile(resetSignal: Bool = null)(implicit p: Parameters) extends Tile(
+       }
+     }
+ 
+-    ptw.io.requestor.drop(2) <> roccs.flatMap(_.io.ptw)
++    ptw.io.requestor.drop(2) <> roccs.flatMap(_.ptw)
+ 
+-    core.io.rocc.busy := cmdRouter.io.busy || roccs.map(_.io.busy).reduce(_ || _)
+-    core.io.rocc.interrupt := roccs.map(_.io.interrupt).reduce(_ || _)
+-    respArb.io.in <> roccs.map(rocc => Queue(rocc.io.resp))
++    core.io.rocc.busy := cmdRouter.io.busy || roccs.map(_.busy).reduce(_ || _)
++    core.io.rocc.interrupt := roccs.map(_.interrupt).reduce(_ || _)
++    respArb.io.in <> roccs.map(rocc => Queue(rocc.resp))
+ 
+     if (p(RoccNCSRs) > 0) {
+-      core.io.rocc.csr.rdata <> roccs.map(_.io.csr.rdata).reduce(_ ++ _)
++      core.io.rocc.csr.rdata <> roccs.map(_.csr.rdata).reduce(_ ++ _)
+       for ((rocc, accelParams) <- roccs.zip(buildRocc)) {
+-        rocc.io.csr.waddr := core.io.rocc.csr.waddr
+-        rocc.io.csr.wdata := core.io.rocc.csr.wdata
+-        rocc.io.csr.wen := core.io.rocc.csr.wen &&
++        rocc.csr.waddr := core.io.rocc.csr.waddr
++        rocc.csr.wdata := core.io.rocc.csr.wdata
++        rocc.csr.wen := core.io.rocc.csr.wen &&
+           accelParams.csrs
+             .map(core.io.rocc.csr.waddr === UInt(_))
+             .reduce((a, b) => a || b)
+       }
+     }
+ 
+-    roccs.flatMap(_.io.utl) :+ uncachedArb.io.out
++    roccs.flatMap(_.utl) :+ uncachedArb.io.out
+   } else { Seq(icache.io.mem) })
+ 
+   if (!usingRocc || nFPUPorts == 0) {

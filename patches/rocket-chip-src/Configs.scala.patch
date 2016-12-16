@@ -1,0 +1,10 @@
+diff --git a/src/main/scala/Configs.scala b/src/main/scala/Configs.scala
+index 5022a6d..4b9791e 100644
+--- a/src/main/scala/Configs.scala
++++ b/src/main/scala/Configs.scala
+@@ -457,3 +457,5 @@ class OneOrEightChannelVLSIConfig extends Config(new WithOneOrMaxChannels ++ new
+ class SimulateBackupMemConfig extends Config(){ Dump("MEM_BACKUP_EN", true) }
+ class BackupMemVLSIConfig extends Config(new SimulateBackupMemConfig ++ new DefaultVLSIConfig)
+ class OneOrEightChannelBackupMemVLSIConfig extends Config(new WithOneOrMaxChannels ++ new With8MemoryChannels ++ new BackupMemVLSIConfig)
++
++class HurricaneConfig extends Config(new With2Cores ++ new WithOneOrMaxChannels ++ new With8MemoryChannels ++ new WithL2Capacity256 ++ new DefaultL2VLSIConfig)

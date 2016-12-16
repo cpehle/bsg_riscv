@@ -31,7 +31,7 @@ export BSG_SCRIPTS=$(BSG_REPO)/scripts
 export ROOT_MNT=/root/mount-dir/mnt
 export SHA_TESTS=$(TOP)/rocket-chip/sha3/tests
 
-export LM_LICENSE_FILE?=27000@bbfs-00.calit2.net
+export LM_LICENSE_FILE?=27020@132.239.15.56
 export SNPSLMD_LICENSE_FILE?=$(LM_LICENSE_FILE)
 export SYNOPSYS_DIR?=/gro/cad/synopsys
 export VCS_RELEASE?=vcs/J-2014.12-SP2
@@ -66,13 +66,17 @@ rocket-chip:
 	@cd rocket-chip; git submodule update --init --recursive
 	@cd rocket-chip/riscv-tools; git submodule update --init --recursive
 	
+rocc-to-top-patch: 
+	-cd rocket-chip; git apply ../patches/rocket-chip-src/*
+	-cd rocket-chip/rocket; git apply ../../patches/rocket-src/*
 
 checkout-all: rocket-chip
 	@echo
 	@echo "#Checking repositories"
 	@echo "#Patching building system"
 	@(stat rocket-chip/riscv-tools/build.common.old > /dev/null 2>&1) || cp rocket-chip/riscv-tools/build.common rocket-chip/riscv-tools/build.common.old
-	@(((patch --dry-run -N rocket-chip/riscv-tools/build.common patches/build.common.patch) > /dev/null 2>&1) && patch -N rocket-chip/riscv-tools/build.common patches/build.common.patch) || echo "#Patch already applied ... skipping!"
+	@(((patch --dry-run -N rocket-chip/riscv-tools/build.common patches/build.common.patch) > /dev/null 2>&1) && patch -N rocket-chip/riscv-tools/build.common patches/build.common.patch) || echo "#Patch already applied ... skipping!"	
+	$(rocc-to-top-patch)
 
 # XXXX various warnings for build-riscv-tools below:
 #configure: WARNING: using in-tree ISL, disabling version check
@@ -205,7 +209,7 @@ emulator-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 	cd rocket-chip/emulator; make clean
 	cd rocket-chip/emulator; make CONFIG=RoccExampleConfig;
 # can use -j 4 here
-	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-asm-tests
+	#cd rocket-chip/emulator; make CONFIG=RoccExampleConfig output/rv64ui-p-add.out
 	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run-bmark-tests
 # to test hardware acelerated implementations of sha3 vs the sha3 software algorithm
 	cd rocket-chip/emulator; ./emulator-Top-RoccExampleConfig pk -s $< #+dramsim
@@ -213,7 +217,19 @@ emulator-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 verilog-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 	make -C rocket-chip/vsim clean
 	make -C rocket-chip/vsim CONFIG=RoccExampleConfig
-	cd rocket-chip/vsim && ./simv-Top-RoccExampleConfig pk $< #-q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+	cd rocket-chip/vsim && ./simv-Top-RoccExampleConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+
+output_dir?=$(TOP)/rocket-chip/vsim/output
+test?=rv64ui-p-add
+$(output_dir)/$(test).out:
+	cd rocket-chip/vsim/ && make output/$(test).out CONFIG=RoccExampleConfig
+
+verilog-test: $(output_dir)/$(test).out
+
+clean-vsim:
+	touch $(BSG_TESTS)/dummy_rocc_test.c
+	cd rocket-chip/vsim; make clean 
+	#make -C rocket-chip/vsim clean
 
 build-sha: rocket-chip/rocc-template
 	cd rocket-chip/rocc-template; ./install-symlinks
@@ -273,6 +289,13 @@ verilog-run-sha: $(SHA_TESTS)/sha3-rocc.rv
 build-bsg-accel: rocket-chip/bsg-accel
 	cd $<; ./install-symlinks 
 
+clean-bsg-accel:
+	-rm $(TOP)/rocket-chip/sha3-accel
+	-mv $(TOP)/rocket-chip/Makefrag.old $(TOP)/rocket-chip/Makefrag
+	-rm $(TOP)/rocket-chip/src/main/scala/PrivateConfigs.scala
+	-patch -Rf $(TOP)/rocket-chip/vsim/Makefile $(TOP)/rocket-chip/bsg-accel/patches/vsim/Makefile.patch
+	-patch -Rf $(TOP)/rocket-chip/vsim/Makefrag $(TOP)/rocket-chip/bsg-accel/patches/vsim/Makefrag.patch
+
 verilog-run-acc: $(BSG_ACCEL_TESTS)/sha3-accum.rv
 	make -C rocket-chip/vsim clean
 	make -C rocket-chip/vsim CONFIG=BsgAccelVLSIConfig
@@ -303,15 +326,23 @@ verilog:
 	@echo "# --see ExampleSmallConfig--"
 
 verilog-run: 
+	#make -C rocket-chip/vsim clean
+	#make -C rocket-chip/vsim 
+	#make -C rocket-chip/vsim ./output/rv64ui-p-fence_i.out
+	#make -C rocket-chip/vsim run
+	cd rocket-chip/vsim/output; for t in `ls *.out`; do echo $$t `cat $$t | tail -1 | awk '{print $$2}'` >> $@.stats; done	
+
+verilog-run-hurricane: 
 	make -C rocket-chip/vsim clean
-	make -C rocket-chip/vsim 
-	make -C rocket-chip/vsim run 
+	make -C rocket-chip/vsim CONFIG=HurricaneAccelConfig
+	make -C rocket-chip/vsim CONFIG=HurricaneAccelConfig run
 
 verilog-run-rocc:
 	make -C rocket-chip/vsim clean
 	make -C rocket-chip/vsim CONFIG=RoccExampleConfig
-	#make -C rocket-chip/vsim CONFIG=RoccExampleConfig run
-	cd rocket-chip/vsim; time ./simv-Top-RoccExampleConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV_LINUX)/root.bin $(RISCV)/riscv64-unknown-elf/bin/bbl $(RISCV_LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > /dev/null
+	make -C rocket-chip/vsim CONFIG=RoccExampleConfig run
+	#make -C rocket-chip/vsim CONFIG=RoccExampleConfig output/rv64uf-p-fsgnj.run
+	#cd rocket-chip/vsim; time ./simv-Top-RoccExampleConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=1000000000 +disk=$(RISCV_LINUX)/root.bin $(RISCV)/riscv64-unknown-elf/bin/bbl $(RISCV_LINUX)/vmlinux 3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
 verilog-debug: verilog-clean
 	make -C rocket-chip/vsim run-debug
