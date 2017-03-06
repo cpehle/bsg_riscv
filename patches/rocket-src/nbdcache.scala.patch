@@ -1,0 +1,14 @@
+diff --git a/src/main/scala/nbdcache.scala b/src/main/scala/nbdcache.scala
+index 2d0eee2..c28dc28 100644
+--- a/src/main/scala/nbdcache.scala
++++ b/src/main/scala/nbdcache.scala
+@@ -1028,7 +1028,8 @@ class HellaCache(implicit p: Parameters) extends L1HellaCacheModule()(p) {
+   when (s2_nack_hit) { mshrs.io.req.valid := Bool(false) }
+   val s2_nack_victim = s2_hit && mshrs.io.secondary_miss
+   val s2_nack_miss = !s2_hit && !mshrs.io.req.ready
+-  val s2_nack = s2_nack_hit || s2_nack_victim || s2_nack_miss
++  val s2_nack_regardless = mshrs.io.secondary_miss && !mshrs.io.req.ready
++  val s2_nack = s2_nack_regardless || s2_nack_hit || s2_nack_victim || s2_nack_miss
+   s2_valid_masked := s2_valid && !s2_nack
+ 
+   val s2_recycle_ecc = (s2_valid || s2_replay) && s2_hit && s2_data_correctable

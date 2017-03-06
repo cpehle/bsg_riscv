@@ -3,4 +3,5 @@ riscv-install
 *.o
 *.rv
 *log
+*sml
 root.bin

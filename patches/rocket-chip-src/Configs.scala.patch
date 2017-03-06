@@ -1,10 +1,13 @@
 diff --git a/src/main/scala/Configs.scala b/src/main/scala/Configs.scala
-index 5022a6d..4b9791e 100644
+index 5022a6d..09a9dac 100644
 --- a/src/main/scala/Configs.scala
 +++ b/src/main/scala/Configs.scala
-@@ -457,3 +457,5 @@ class OneOrEightChannelVLSIConfig extends Config(new WithOneOrMaxChannels ++ new
- class SimulateBackupMemConfig extends Config(){ Dump("MEM_BACKUP_EN", true) }
- class BackupMemVLSIConfig extends Config(new SimulateBackupMemConfig ++ new DefaultVLSIConfig)
- class OneOrEightChannelBackupMemVLSIConfig extends Config(new WithOneOrMaxChannels ++ new With8MemoryChannels ++ new BackupMemVLSIConfig)
-+
-+class HurricaneConfig extends Config(new With2Cores ++ new WithOneOrMaxChannels ++ new With8MemoryChannels ++ new WithL2Capacity256 ++ new DefaultL2VLSIConfig)
+@@ -225,7 +225,7 @@ class DefaultConfig extends Config (
+       case BankIdLSB => 0
+       case CacheBlockBytes => Dump("CACHE_BLOCK_BYTES", 64)
+       case CacheBlockOffsetBits => log2Up(here(CacheBlockBytes))
+-      case UseBackupMemoryPort => true
++      case UseBackupMemoryPort => false
+       case MMIOBase => Dump("MEM_SIZE", BigInt(1L << 30)) // 1 GB
+       case DeviceTree => makeDeviceTree()
+       case GlobalAddrMap => {
