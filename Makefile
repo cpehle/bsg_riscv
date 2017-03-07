@@ -104,12 +104,14 @@ bsgmem-patch:
 	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/vsim/Makefrag.patch
 	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/rocket-chip-src/Configs.scala.patch
 	-cd $(ROCKET_CORE); git apply $(PATCHES_DIR)/rocket-src/nbdcache.scala.patch
+	-cd $(ROCKET_CORE); git apply $(PATCHES_DIR)/rocket-src/dpath_alu.scala.patch
 
 #reverses default-patch
 clean-default-patch:
 	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/vsim/Makefrag.patch
 	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/rocket-chip-src/Configs.scala.patch
 	-cd $(ROCKET_CORE); git apply -R $(PATCHES_DIR)/rocket-src/nbdcache.scala.patch
+	-cd $(ROCKET_CORE); git apply -R $(PATCHES_DIR)/rocket-src/dpath_alu.scala.patch
 
 #rocc-to-top patch added by default before checkout
 checkout-all: rocket-chip default-patch
