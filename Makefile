@@ -91,21 +91,19 @@ clean-rocket-chip:
 
 #moves rocc to the RocketChipTop & changes memBackup config to false
 rocc-to-top: 
-	-cd $(ROCKET_CHIP); git apply --ignore-whitespace --ignore-space-change ../patches/rocket-chip-src/RocketChip.scala.patch
-	-cd $(ROCKET_CHIP); git apply ../patches/rocket-chip-src/Configs.scala.patch
-	-cd $(ROCKET_CORE); git apply ../../patches/rocket-src/tile.scala.patch
+	-cd $(ROCKET_CHIP); git apply --ignore-whitespace --ignore-space-change $(PATCHES_DIR)/rocket-chip-src/RocketChip.scala.patch
+	-cd $(ROCKET_CORE); git apply  $(PATCHES_DIR)/rocket-src/tile.scala.patch
 
 #reverses rocc-to-top patch
 clean-rocc-to-top:
-	-cd $(ROCKET_CHIP); git apply -R ../patches/rocket-chip-src/RocketChip.scala.patch
-	-cd $(ROCKET_CHIP); git apply -R ../patches/rocket-chip-src/Configs.scala.patch
-	-cd $(ROCKET_CORE); git apply -R ../../patches/rocket-src/tile.scala.patch
+	-cd $(ROCKET_CHIP); git apply -R  $(PATCHES_DIR)/rocket-chip-src/RocketChip.scala.patch
+	-cd $(ROCKET_CORE); git apply -R  $(PATCHES_DIR)/rocket-src/tile.scala.patch
 
 #resolves the dcache
 bsgmem-patch:
-	cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/vsim/Makefrag.patch
-	cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/rocket-chip-src/Configs.scala.patch
-	cd $(ROCKET_CORE); git apply $(PATCHES_DIR)/rocket-src/nbdcache.scala.patch
+	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/vsim/Makefrag.patch
+	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/rocket-chip-src/Configs.scala.patch
+	-cd $(ROCKET_CORE); git apply $(PATCHES_DIR)/rocket-src/nbdcache.scala.patch
 
 #reverses bsgmem-patch
 clean-bsgmem-patch:
