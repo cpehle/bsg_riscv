@@ -100,8 +100,9 @@ clean-rocc-to-top:
 	-cd $(ROCKET_CORE); git apply -R  $(PATCHES_DIR)/rocket-src/tile.scala.patch
 
 #resolves the dcache
-bsgmem-patch:
+default-patch:
 	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/vsim/Makefrag.patch
+	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/vsim/Makefrag-verilog.patch
 	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/rocket-chip-src/Configs.scala.patch
 	-cd $(ROCKET_CORE); git apply $(PATCHES_DIR)/rocket-src/nbdcache.scala.patch
 	-cd $(ROCKET_CORE); git apply $(PATCHES_DIR)/rocket-src/dpath_alu.scala.patch
@@ -109,6 +110,7 @@ bsgmem-patch:
 #reverses default-patch
 clean-default-patch:
 	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/vsim/Makefrag.patch
+	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/vsim/Makefrag-verilog.patch
 	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/rocket-chip-src/Configs.scala.patch
 	-cd $(ROCKET_CORE); git apply -R $(PATCHES_DIR)/rocket-src/nbdcache.scala.patch
 	-cd $(ROCKET_CORE); git apply -R $(PATCHES_DIR)/rocket-src/dpath_alu.scala.patch
@@ -167,7 +169,13 @@ clean-riscv-tools:
 #---------------------------------
 
 #Alpaca: Rocket default RTL
-alpaca: clean-rocc-to-top clean-bsg-accel verilog
+alpaca: clean-rocc-to-top clean-bsg-accel
+	make -C $(VSIM) clean verilog NO_SRAM=1
+	sed -i 's/\<Top\>/rocket_chip/g' rocket-chip/vsim/generated-src/Top.DefaultVLSIConfig.v
+	sed -i 's/\<Top\>/test_bsg/g' rocket-chip/vsim/generated-src/Top.DefaultVLSIConfig.tb.vfrag
+	sed -i 's/\.clk(clk)\,/\.core_clk_i(clk)\, \.io_clk_i(io_clk)\,/g' rocket-chip/vsim/generated-src/Top.DefaultVLSIConfig.tb.vfrag
+	sed -i 's/\.reset(reset)\,/\0 \.gateway_async_reset_i(gateway_async_reset)\,/g' rocket-chip/vsim/generated-src/Top.DefaultVLSIConfig.tb.vfrag
+	sed -i 's/gateway_async_reset)\,/\0 \.boot_done_o(boot_done)\,/g' rocket-chip/vsim/generated-src/Top.DefaultVLSIConfig.tb.vfrag
 
 #Runs all asm and benchmark tests in VCS
 alpaca-test: clean-rocc-to-top clean-bsg-accel verilog-run
@@ -175,12 +183,15 @@ alpaca-test: clean-rocc-to-top clean-bsg-accel verilog-run
 #Generates Rocket+Accum RTL with rocc moved to the top
 bison: rocc-to-top build-bsg-accel
 	make verilog CONFIG=Bsg1AccelVLSIConfig
+	sed -i 's/\<Top\>/rocket_chip/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.v
 
 #Runs all asm and bmark + Accelerator test
 bison-test: rocc-to-top build-bsg-accel
 	make verilog-run-acc num=1 test=$(BSG_ACCEL_TESTS)/accum
 
-coyote: bison
+coyote: rocc-to-top build-bsg-accel
+	make verilog CONFIG=Bsg1AccelVLSIConfig
+	sed -i 's/\<RocketChipTop\>/rocket_chip/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.v
 
 coyote-test: bison-test
 

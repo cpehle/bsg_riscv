@@ -1,0 +1,22 @@
+diff --git a/vsim/Makefrag-verilog b/vsim/Makefrag-verilog
+index 39ed547..9ed8a60 100644
+--- a/vsim/Makefrag-verilog
++++ b/vsim/Makefrag-verilog
+@@ -2,12 +2,17 @@
+ # Verilog Generation
+ #--------------------------------------------------------------------
+ 
++ifeq ($(NO_SRAM),1)
++$(generated_dir)/$(MODEL).$(CONFIG).v $(generated_dir)/$(MODEL).$(CONFIG).d : $(chisel_srcs)
++	cd $(base_dir) && mkdir -p $(generated_dir) && $(SBT) "run $(CHISEL_ARGS) --configDump --noInlineMem"
++else
+ $(generated_dir)/$(MODEL).$(CONFIG).v $(generated_dir)/$(MODEL).$(CONFIG).d : $(chisel_srcs)
+ 	cd $(base_dir) && mkdir -p $(generated_dir) && $(SBT) "run $(CHISEL_ARGS) --configDump --noInlineMem"
+ 	cd $(generated_dir) && \
+ 	if [ -a $(MODEL).$(CONFIG).conf ]; then \
+ 	  $(mem_gen) $(generated_dir)/$(MODEL).$(CONFIG).conf >> $(generated_dir)/$(MODEL).$(CONFIG).v; \
+ 	fi
++endif
+ 
+ $(generated_dir)/consts.$(CONFIG).vh: $(generated_dir)/$(MODEL).$(CONFIG).v
+ 	echo "\`ifndef CONST_VH" > $@
