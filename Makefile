@@ -52,7 +52,7 @@ export CC=/opt/rh/devtoolset-2/root/usr/bin/gcc
 export CXX=/opt/rh/devtoolset-2/root/usr/bin/g++
 export SED=sed
 export PATH
-export SHELL:=$(SHELL) 
+export SHELL:=$(SHELL)
 
 # does not seem to correctly simulate
 #
@@ -90,47 +90,45 @@ clean-rocket-chip:
 	rm -rf riscv-install
 
 #moves rocc to the RocketChipTop & changes memBackup config to false
-rocc-to-top: 
+rocc-to-top:
 	-cd $(ROCKET_CHIP); git apply --ignore-whitespace --ignore-space-change ../patches/rocket-chip-src/RocketChip.scala.patch
-	-cd $(ROCKET_CHIP); git apply ../patches/rocket-chip-src/Configs.scala.patch
 	-cd $(ROCKET_CORE); git apply ../../patches/rocket-src/tile.scala.patch
 
 #reverses rocc-to-top patch
 clean-rocc-to-top:
 	-cd $(ROCKET_CHIP); git apply -R ../patches/rocket-chip-src/RocketChip.scala.patch
-	-cd $(ROCKET_CHIP); git apply -R ../patches/rocket-chip-src/Configs.scala.patch
 	-cd $(ROCKET_CORE); git apply -R ../../patches/rocket-src/tile.scala.patch
 
 #resolves the dcache
-bsgmem-patch:
+default-patch:
 	cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/vsim/Makefrag.patch
 	cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/rocket-chip-src/Configs.scala.patch
 	cd $(ROCKET_CORE); git apply $(PATCHES_DIR)/rocket-src/nbdcache.scala.patch
 
-#reverses bsgmem-patch
-clean-bsgmem-patch:
+#reverses default-patch
+clean-default-patch:
 	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/vsim/Makefrag.patch
 	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/rocket-chip-src/Configs.scala.patch
 	-cd $(ROCKET_CORE); git apply -R $(PATCHES_DIR)/rocket-src/nbdcache.scala.patch
 
 #rocc-to-top patch added by default before checkout
-checkout-all: rocket-chip bsgmem-patch 
+checkout-all: rocket-chip default-patch
 	@echo
 	@echo "#Checking repositories"
 	@echo "#Patching building system"
 	@(stat $(RISCV_TOOLS)/build.common.old > /dev/null 2>&1) || cp $(RISCV_TOOLS)/build.common $(RISCV_TOOLS)/build.common.old
 	@(((patch --dry-run -N $(RISCV_TOOLS)/build.common patches/build.common.patch) > /dev/null 2>&1) && \
-		patch -N $(RISCV_TOOLS)/build.common patches/build.common.patch) || echo "#Patch already applied ... skipping!"	
+		patch -N $(RISCV_TOOLS)/build.common patches/build.common.patch) || echo "#Patch already applied ... skipping!"
 
 #Toolchain for building spike and pk only
-build-spike-pk: 
+build-spike-pk:
 	@echo
 	@echo "#Building spike and pk only.."
 	cd $(RISCV_TOOLS); sed -i 's/JOBS=16/JOBS=8/' build.common
 	cd $(RISCV_TOOLS); $(BSG_SCRIPTS)/build-spike-pk-only.sh | tee $@.log
 
 #Newlib toolchain build
-build-riscv-tools-newlib: 
+build-riscv-tools-newlib:
 	@echo
 	@echo "#Building riscv tools (newlib).."
 	@cd $(RISCV_TOOLS); sed -i 's/JOBS=16/JOBS=8/' build.common
@@ -202,7 +200,7 @@ test-spike-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 test-spike-rocc-linux:
 	cd $(RISCV_LINUX); spike --extension=dummy_rocc +disk=root.bin bbl vmlinux
 
-spike-linux-test-setup: $(TEST_OBJS) 
+spike-linux-test-setup: $(TEST_OBJS)
 	@echo
 	@echo "#Placing compiled objects in the file system for linux boot on RISC-V (Need root privileges for writable mount!!).."
 	su -c '	mkdir -p $(ROOT_MNT); \
@@ -232,29 +230,29 @@ test-clean:
 #Rocket testing using Chisel emulator
 #------------------------------------
 
-emulator-tests: 
+emulator-tests:
 	cd rocket-chip/emulator; make clean
 	cd rocket-chip/emulator; make
 	cd rocket-chip/emulator; make run-asm-tests
-	cd rocket-chip/emulator; make run-bmark-tests	
+	cd rocket-chip/emulator; make run-bmark-tests
 
-emulator-linux: 
+emulator-linux:
 	cd rocket-chip/emulator; time ./emulator-Top-DefaultCPPConfig +dramsim +max-cycles=1000000000 +verbose \
 	  +disk=$(RISCV_LINUX)/root.bin \
-		 	bbl $(RISCV_LINUX)/vmlinux \
+			bbl $(RISCV_LINUX)/vmlinux \
 				3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
 emulator-rocc-linux:
-	#cd $(ROCKET-CHIP)/riscv-tools/riscv-isa-sim/dummy_rocc && riscv64-unknown-elf-gcc dummy_rocc_test.c -I. -o dummy_rocc_test.rv 
+	#cd $(ROCKET-CHIP)/riscv-tools/riscv-isa-sim/dummy_rocc && riscv64-unknown-elf-gcc dummy_rocc_test.c -I. -o dummy_rocc_test.rv
 	#elf2hex 16 16384 dummy_rocc_test > dummy_rocc_test.hex
 	cd rocket-chip/emulator; make clean
 	cd rocket-chip/emulator; make CONFIG=RoccExampleConfig
 	#cd rocket-chip/emulator; make CONFIG=RoccExampleConfig run-asm-tests
-	#cd rocket-chip/emulator; make CONFIG=RoccExampleConfig run-bmark-tests	
+	#cd rocket-chip/emulator; make CONFIG=RoccExampleConfig run-bmark-tests
 	#	cd rocket-chip/emulator; ./emulator-Top-RoccExampleConfig pk $(ROCKET-CHIP)/riscv-tools/riscv-isa-sim/dummy_rocc/dummy_rocc_test.rv +dramsim
 	cd rocket-chip/emulator; time ./emulator-Top-RoccExampleConfig +dramsim +max-cycles=1000000000 +verbose \
 	  +disk=$(RISCV_LINUX)/root.bin \
-		 	bbl $(RISCV_LINUX)/vmlinux \
+			bbl $(RISCV_LINUX)/vmlinux \
 				3>&1 1>&2 2>&3 | spike-dasm > /dev/null
 
 rocket-chip/bsg-accel:
@@ -283,7 +281,7 @@ verilog-test: $(output_dir)/$(test).out
 
 clean-vsim:
 	touch $(BSG_TESTS)/dummy_rocc_test.c
-	cd $(VSIM); make clean 
+	cd $(VSIM); make clean
 	#make -C $(VSIM) clean
 
 
@@ -310,7 +308,7 @@ clean-sha:
 	rm rocket-chip/src/main/scala/PrivateConfigs.scala
 	cd $(RISCV_ISA_SIM); rm sha3 riscv-sha3.pc.in configure.ac; mv configure.ac.old configure.ac; mv configure.old configure
 	cd $(ROCKET_CHIP); rm sha3 Makefrag; mv Makefrag.old Makefrag
-	cd $(RISCV_ISA_SIM); rm -rf build-sha; #build; 
+	cd $(RISCV_ISA_SIM); rm -rf build-sha; #build;
 	cd $(RISCV_TOOLS); ./build-spike-only.sh
 	#TODO: make build-sha replace build directory and clean-sha recreate it
 
@@ -360,24 +358,24 @@ verilog-sha-linux:
 #------------------------------------
 
 build-bsg-accel: rocket-chip/bsg-accel
-	cd $<; ./install-symlinks 
+	cd $<; ./install-symlinks
 
-clean-bsg-accel: 
+clean-bsg-accel:
 	-mv $(ROCKET_CHIP)/Makefrag.old $(ROCKET_CHIP)/Makefrag 2>/dev/null
 	-rm $(ROCKET_CHIP)/src/main/scala/PrivateConfigs.scala
 	-rm $(ROCKET_CHIP)/accel
-	-patch -Rf $(VSIM)/Makefile $(BSG_ACCEL_PATCHES)/vsim/Makefile.patch	
-	-patch -Rf $(VSIM)/Makefrag $(BSG_ACCEL_PATCHES)/vsim/Makefrag.patch	
+	-patch -Rf $(VSIM)/Makefile $(BSG_ACCEL_PATCHES)/vsim/Makefile.patch
+	-patch -Rf $(VSIM)/Makefrag $(BSG_ACCEL_PATCHES)/vsim/Makefrag.patch
 
 num?=1
 verilog-run-acc: $(test).rv
 	make verilog-run CONFIG=Bsg$(num)AccelVLSIConfig
-	#cd $(VSIM) && ./simv-Top-Bsg$(num)AccelVLSIConfig -gui -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out 
-	cd $(VSIM) && ./simv-Top-Bsg$(num)AccelVLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out 
+	#cd $(VSIM) && ./simv-Top-Bsg$(num)AccelVLSIConfig -gui -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+	cd $(VSIM) && ./simv-Top-Bsg$(num)AccelVLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
 
 emulator-bsg-accel: $(BSG_ACCEL_TESTS)/sha3-accum.rv
 	make -C rocket-chip/emulator clean
-	make -C rocket-chip/emulator CONFIG=Bsg$(num)AccelCPPConfig 
+	make -C rocket-chip/emulator CONFIG=Bsg$(num)AccelCPPConfig
 	cd rocket-chip/emulator && ./emulator-Top-Bsg$(num)AccelCPPConfig -q +ntb_random_seed_automatic +dramsim +max-cycles=100000000 pk -s $<
 
 verilog-clean:
@@ -400,12 +398,12 @@ verilog-run:
 	make -C $(VSIM) clean
 	make -C $(VSIM)
 	make -C $(VSIM) run
-	#cd $(VSIM) && ./simv-Top-$(CONFIG) -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out 
+	#cd $(VSIM) && ./simv-Top-$(CONFIG) -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
 	#make -C $(VSIM) dramsim2_ini
 	#make -C $(RISCV_TOOLS)/riscv-tests/benchmarks acc.riscv.hex
 	#cp $(RISCV_TOOLS)/riscv-tests/benchmarks/acc.riscv.hex $(RISCV)/riscv64-unknown-elf/share/riscv-tests/benchmarks/acc.riscv.hex
 	#make -C $(VSIM) ./output/acc.riscv.out
-	#cd $(VSIM)/output; for t in `ls *.out`; do echo $$t `cat $$t | tail -1 | awk '{print $$2}'` >> $@.stats; done	
+	#cd $(VSIM)/output; for t in `ls *.out`; do echo $$t `cat $$t | tail -1 | awk '{print $$2}'` >> $@.stats; done
 
 verilog-debug: verilog-clean
 	make -C $(VSIM) run-debug
@@ -415,7 +413,7 @@ verilog-debug: verilog-clean
 #Linux
 #------------------------------------
 
-linux-4.1.15: 
+linux-4.1.15:
 	curl -L https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.1.15.tar.xz | tar -xJ
 	cd linux-4.1.15; git init
 	cd linux-4.1.15; git remote add origin https://github.com/riscv/riscv-linux.git
@@ -456,7 +454,7 @@ busy-box:
 #
 #http://stackoverflow.com/questions/9450394/how-to-install-gcc-piece-by-piece-with-gmp-mpfr-mpc-elf-without-shared-libra
 
-#linux-3.14.41: 
+#linux-3.14.41:
 #	curl -L https://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.14.41.tar.xz | tar -xJ
 #	cd linux-3.14.41; git init
 #	cd linux-3.14.41; git remote add -t linux-3.14.y-riscv origin https://github.com/riscv/riscv-linux.git
