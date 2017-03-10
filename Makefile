@@ -183,16 +183,25 @@ alpaca-test: clean-rocc-to-top clean-bsg-accel
 
 #Generates Rocket+Accum RTL with rocc moved to the top
 bison: rocc-to-top build-bsg-accel
-	make verilog CONFIG=Bsg1AccelVLSIConfig
+	make -C $(VSIM) clean verilog NO_SRAM=1 CONFIG=Bsg1AccelVLSIConfig
 	sed -i 's/\<Top\>/rocket_chip/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.v
+	sed -i 's/\<Top\>/test_bsg/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
+	sed -i 's/\.clk(clk)\,/\.core_clk_i(clk)\, \.io_clk_i(io_clk)\,/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
+	sed -i 's/\.reset(reset)\,/\0 \.gateway_async_reset_i(gateway_async_reset)\,/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
+	sed -i 's/gateway_async_reset)\,/\0 \.boot_done_o(boot_done)\,/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
 
 #Runs all asm and bmark + Accelerator test
 bison-test: rocc-to-top build-bsg-accel
 	make verilog-run-acc num=1 test=$(BSG_ACCEL_TESTS)/accum
 
 coyote: rocc-to-top build-bsg-accel
-	make verilog CONFIG=Bsg1AccelVLSIConfig
+	make -C $(VSIM) clean verilog NO_SRAM=1 CONFIG=Bsg1AccelVLSIConfig
 	sed -i 's/\<RocketChipTop\>/rocket_chip/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.v
+	sed -i 's/\<Top\>/test_bsg/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
+	sed -i 's/\.clk(clk)\,/\.core_clk_i(clk)\, \.io_clk_i(io_clk)\,/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
+	sed -i 's/\.reset(reset)\,/\0 \.gateway_async_reset_i(gateway_async_reset)\,/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
+	sed -i 's/gateway_async_reset)\,/\0 \.boot_done_o(boot_done)\,/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
+	sed -i 's/\.boot_done_o(boot_done)\,/\0 \.manycore_clk_i(manycore_clk)\,/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
 
 coyote-test: bison-test
 
