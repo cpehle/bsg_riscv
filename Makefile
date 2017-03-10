@@ -177,8 +177,9 @@ alpaca: clean-rocc-to-top clean-bsg-accel
 	sed -i 's/\.reset(reset)\,/\0 \.gateway_async_reset_i(gateway_async_reset)\,/g' rocket-chip/vsim/generated-src/Top.DefaultVLSIConfig.tb.vfrag
 	sed -i 's/gateway_async_reset)\,/\0 \.boot_done_o(boot_done)\,/g' rocket-chip/vsim/generated-src/Top.DefaultVLSIConfig.tb.vfrag
 
-#Runs all asm and benchmark tests in VCS
-alpaca-test: clean-rocc-to-top clean-bsg-accel verilog-run
+# Runs all asm and benchmark tests in VCS
+alpaca-test: clean-rocc-to-top clean-bsg-accel
+	make -C $(VSIM) clean verilog run
 
 #Generates Rocket+Accum RTL with rocc moved to the top
 bison: rocc-to-top build-bsg-accel
