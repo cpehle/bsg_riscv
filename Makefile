@@ -180,6 +180,8 @@ alpaca: clean-rocc-to-top clean-bsg-accel
 #Runs all asm and benchmark tests in VCS
 alpaca-test: clean-rocc-to-top clean-bsg-accel verilog-run
 
+alpaca-test-debug: clean-rocc-to-top clean-bsg-accel verilog-debug
+
 #Generates Rocket+Accum RTL with rocc moved to the top
 bison: rocc-to-top build-bsg-accel
 	make verilog CONFIG=Bsg1AccelVLSIConfig
@@ -307,7 +309,7 @@ rocket-chip/rocc-template:
 	git clone https://bitbucket.org/taylor-bsg/bsg_riscv_rocc.git $@
 
 RISCV_ISA_SIM= $(RISCV_TOOLS)/riscv-isa-sim
-build-sha: rocket-chip/rocc-template
+build-sha: rocket-chip/rocc-template clean-default-patch
 	cd rocket-chip/rocc-template; ./install-symlinks
 	-rm -rf $(RISCV_ISA_SIM)/build-sha
 	mkdir -p $(RISCV_ISA_SIM)/build-sha
@@ -339,7 +341,8 @@ test-spike-sha-linux:
 emulator-sha: $(SHA_TESTS)/sha3-rocc.rv
 	cd rocket-chip/emulator; make clean
 	cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig;
-	cd rocket-chip/emulator; ./emulator-Top-Sha3CPPConfig pk -s $< #+dramsim
+	#cd rocket-chip/emulator; make CONFIG=Sha3CPPConfig run; #Uncomment to run all RISC-V assembly tests
+	cd rocket-chip/emulator; ./emulator-Top-Sha3CPPConfig pk -s $< #Runs the accelerator test
 
 #4 hours
 emulator-sha-linux:
@@ -352,10 +355,9 @@ emulator-sha-linux:
 
 verilog-run-sha: $(SHA_TESTS)/sha3-rocc.rv
 	make -C $(VSIM) clean
-	make -C $(VSIM) CONFIG=Sha3VLSIConfig
-	#make -C $(VSIM) CONFIG=Sha3VLSIConfig run
-	#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/sha3-rocc.rv $(ROCKETCHIP)/sha3/tests/sha3-rocc.c
-	cd $(VSIM) && ./simv-Top-Sha3VLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+	make -C $(VSIM) CONFIG=Sha3VLSIConfig;
+	#make -C $(VSIM) CONFIG=Sha3VLSIConfig run; #Uncomment to run all RISC-V assembly tests
+	cd $(VSIM) && ./simv-Top-Sha3VLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out #Runs the accelerator test
 
 
 #9 hours
@@ -407,15 +409,8 @@ verilog:
 #	@echo "# src/main/scala/PublicConfigs.scala sets base configuration-- can be overridden"
 #	@echo "# --see ExampleSmallConfig--"
 
-verilog-run:
-	make -C $(VSIM) clean
-	make -C $(VSIM)
+verilog-run: verilog-clean
 	make -C $(VSIM) run
-	#cd $(VSIM) && ./simv-Top-$(CONFIG) -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
-	#make -C $(VSIM) dramsim2_ini
-	#make -C $(RISCV_TOOLS)/riscv-tests/benchmarks acc.riscv.hex
-	#cp $(RISCV_TOOLS)/riscv-tests/benchmarks/acc.riscv.hex $(RISCV)/riscv64-unknown-elf/share/riscv-tests/benchmarks/acc.riscv.hex
-	#make -C $(VSIM) ./output/acc.riscv.out
 	#cd $(VSIM)/output; for t in `ls *.out`; do echo $$t `cat $$t | tail -1 | awk '{print $$2}'` >> $@.stats; done
 
 verilog-debug: verilog-clean
