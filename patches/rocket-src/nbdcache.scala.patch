@@ -1,8 +1,20 @@
 diff --git a/src/main/scala/nbdcache.scala b/src/main/scala/nbdcache.scala
-index 2d0eee2..c28dc28 100644
+index 2d0eee2..55c3630 100644
 --- a/src/main/scala/nbdcache.scala
 +++ b/src/main/scala/nbdcache.scala
-@@ -1028,7 +1028,8 @@ class HellaCache(implicit p: Parameters) extends L1HellaCacheModule()(p) {
+@@ -866,7 +866,10 @@ class HellaCache(implicit p: Parameters) extends L1HellaCacheModule()(p) {
+   val s1_tag_match_way = wayMap((w: Int) => s1_tag_eq_way(w) && meta.io.resp(w).coh.isValid()).toBits
+   s1_clk_en := metaReadArb.io.out.valid //TODO: should be metaReadArb.io.out.fire(), but triggers Verilog backend bug
+   val s1_writeback = s1_clk_en && !s1_valid && !s1_replay
+-  val s2_tag_match_way = RegEnable(s1_tag_match_way, s1_clk_en)
++  val s1_clk_en_ready = Reg(next=meta.io.read.ready)
++  val s2_clk_en_ready = RegEnable(s1_clk_en_ready, s1_clk_en)
++  val s2_tag_match_way_r = RegEnable(s1_match_way, s1_clk_en)
++  val s2_tag_match_way   = wayMap((w: Int) => s2_tag_match_way_r(w) && s2_clk_en_ready).toBits
+   val s2_tag_match = s2_tag_match_way.orR
+   val s2_hit_state = Mux1H(s2_tag_match_way, wayMap((w: Int) => RegEnable(meta.io.resp(w).coh, s1_clk_en)))
+   val s2_hit = s2_tag_match && 
+@@ -1028,7 +1031,8 @@ class HellaCache(implicit p: Parameters) extends L1HellaCacheModule()(p) {
    when (s2_nack_hit) { mshrs.io.req.valid := Bool(false) }
    val s2_nack_victim = s2_hit && mshrs.io.secondary_miss
    val s2_nack_miss = !s2_hit && !mshrs.io.req.ready
