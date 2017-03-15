@@ -1,5 +1,5 @@
 diff --git a/src/main/scala/nbdcache.scala b/src/main/scala/nbdcache.scala
-index 2d0eee2..55c3630 100644
+index 2d0eee2..e3a5532 100644
 --- a/src/main/scala/nbdcache.scala
 +++ b/src/main/scala/nbdcache.scala
 @@ -866,7 +866,10 @@ class HellaCache(implicit p: Parameters) extends L1HellaCacheModule()(p) {
@@ -9,7 +9,7 @@ index 2d0eee2..55c3630 100644
 -  val s2_tag_match_way = RegEnable(s1_tag_match_way, s1_clk_en)
 +  val s1_clk_en_ready = Reg(next=meta.io.read.ready)
 +  val s2_clk_en_ready = RegEnable(s1_clk_en_ready, s1_clk_en)
-+  val s2_tag_match_way_r = RegEnable(s1_match_way, s1_clk_en)
++  val s2_tag_match_way_r = RegEnable(s1_tag_match_way, s1_clk_en)
 +  val s2_tag_match_way   = wayMap((w: Int) => s2_tag_match_way_r(w) && s2_clk_en_ready).toBits
    val s2_tag_match = s2_tag_match_way.orR
    val s2_hit_state = Mux1H(s2_tag_match_way, wayMap((w: Int) => RegEnable(meta.io.resp(w).coh, s1_clk_en)))
