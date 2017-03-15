@@ -194,7 +194,7 @@ bison: rocc-to-top build-bsg-accel
 
 #Runs all asm and bmark + Accelerator test
 bison-test: rocc-to-top build-bsg-accel
-	make verilog-run-acc num=1 test=$(BSG_ACCEL_TESTS)/accum
+	make verilog-run-acc num=1 test=accum
 
 coyote: rocc-to-top build-bsg-accel
 	make -C $(VSIM) clean verilog NO_SRAM=1 CONFIG=Bsg1AccelVLSIConfig
@@ -393,7 +393,7 @@ clean-bsg-accel:
 	-patch -Rf $(VSIM)/Makefrag $(BSG_ACCEL_PATCHES)/vsim/Makefrag.patch
 
 num?=1
-verilog-run-acc: $(test).rv
+verilog-run-acc: $(BSG_ACCEL_TESTS)/$(test).rv
 	make verilog-run CONFIG=Bsg$(num)AccelVLSIConfig
 	#cd $(VSIM) && ./simv-Top-Bsg$(num)AccelVLSIConfig -gui -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
 	cd $(VSIM) && ./simv-Top-Bsg$(num)AccelVLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
