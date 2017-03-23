@@ -1,13 +1,30 @@
 diff --git a/src/main/scala/btb.scala b/src/main/scala/btb.scala
-index a86357e..ea08af8 100644
+index a86357e..99e8f7a 100644
 --- a/src/main/scala/btb.scala
 +++ b/src/main/scala/btb.scala
-@@ -81,7 +81,7 @@ class BHT(nbht: Int)(implicit p: Parameters) {
+@@ -80,8 +80,14 @@ class BHT(nbht: Int)(implicit p: Parameters) {
+     when (mispredict) { history := Cat(taken, d.history(nbhtbits-1,1)) }
    }
  
++  def init() = {
++    for (i <- 0 until nbht) {
++      table(i) := UInt(0)
++    }
++  }
++
    private val table = Mem(nbht, UInt(width = 2))
 -  val history = Reg(UInt(width = nbhtbits))
 +  val history = Reg(outType=UInt(width = nbhtbits), init=UInt(0))
  }
  
  // BTB update occurs during branch resolution (and only on a mispredict).
+@@ -267,6 +273,9 @@ class BTB(implicit p: Parameters) extends BtbModule {
+     val isBranch = !Mux1H(hits, isJump)
+     val res = bht.get(io.req.bits.addr, io.req.valid && io.resp.valid && isBranch)
+     val update_btb_hit = io.bht_update.bits.prediction.valid
++    when (reset) {
++      bht.init()
++    }
+     when (io.bht_update.valid && update_btb_hit) {
+       bht.update(io.bht_update.bits.pc, io.bht_update.bits.prediction.bits.bht, io.bht_update.bits.taken, io.bht_update.bits.mispredict)
+     }
