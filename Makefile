@@ -208,6 +208,7 @@ coyote: rocc-to-top build-bsg-accel
 	sed -i 's/\.reset(reset)\,/\0 \.gateway_async_reset_i(gateway_async_reset)\,/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
 	sed -i 's/gateway_async_reset)\,/\0 \.boot_done_o(boot_done)\,/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
 	sed -i 's/\.boot_done_o(boot_done)\,/\0 \.manycore_clk_i(manycore_clk)\,/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.tb.vfrag
+	sed -i 's/ifndef SYNTHESIS/ifdef ROCKET_INITREG_SIM/g' rocket-chip/vsim/generated-src/Top.Bsg1AccelVLSIConfig.v
 
 coyote-test: bison-test
 
