@@ -1,0 +1,27 @@
+diff --git a/src/main/scala/csr.scala b/src/main/scala/csr.scala
+index 62f81ff..7a100f2 100644
+--- a/src/main/scala/csr.scala
++++ b/src/main/scala/csr.scala
+@@ -162,16 +162,12 @@ class CSRFile(implicit p: Parameters) extends CoreModule()(p)
+   io.host.csr.req.ready := !host_csr_req_valid && !host_csr_rep_valid
+   io.host.csr.resp.valid := host_csr_rep_valid
+   io.host.csr.resp.bits := host_csr_bits.data
+-  when (io.host.csr.req.fire()) {
+-    host_csr_req_valid := true
+-    host_csr_bits := io.host.csr.req.bits
+-  }
+-  when (host_csr_req_fire) {
+-    host_csr_req_valid := false
+-    host_csr_rep_valid := true
+-    host_csr_bits.data := io.rw.rdata
+-  }
+-  when (io.host.csr.resp.fire()) { host_csr_rep_valid := false }
++
++  host_csr_req_valid := Mux(host_csr_req_valid, cpu_ren, io.host.csr.req.fire() )
++  host_csr_rep_valid := Mux(host_csr_rep_valid, ! io.host.csr.resp.ready, host_csr_req_fire )
++
++  when (io.host.csr.req.fire()) {host_csr_bits := io.host.csr.req.bits}
++  when (host_csr_req_fire) {host_csr_bits.data := io.rw.rdata}
+ 
+   io.host.debug_stats_csr := reg_stats // direct export up the hierarchy
+ 
