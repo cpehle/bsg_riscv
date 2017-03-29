@@ -19,7 +19,7 @@ index 62f81ff..7a100f2 100644
 +
 +  host_csr_req_valid := Mux(host_csr_req_valid, cpu_ren, io.host.csr.req.fire() )
 +  host_csr_rep_valid := Mux(host_csr_rep_valid, ! io.host.csr.resp.ready, host_csr_req_fire )
-+
++  when (io.host.csr.resp.ready && !host_csr_req_fire) { host_csr_rep_valid := false }
 +  when (io.host.csr.req.fire()) {host_csr_bits := io.host.csr.req.bits}
 +  when (host_csr_req_fire) {host_csr_bits.data := io.rw.rdata}
  
