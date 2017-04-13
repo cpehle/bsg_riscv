@@ -40,7 +40,11 @@ export SHA_TESTS=$(ROCKET_CHIP)/sha3/tests
 export BSG_ACCEL_TESTS=$(ROCKET_CHIP)/bsg-accel/tests
 export BSG_ACCEL_PATCHES=$(ROCKET_CHIP)/bsg-accel/patches
 
-export LM_LICENSE_FILE?=27020@132.239.15.56
+-include ../cad/common/mk/cadenv.mk
+ifeq ($(LM_LICENSE_FILE),)
+$(warning LM_LICENSE_FILE is not defined; VCS may not run)
+endif
+
 export SNPSLMD_LICENSE_FILE?=$(LM_LICENSE_FILE)
 export SYNOPSYS_DIR?=/gro/cad/synopsys
 export VCS_RELEASE?=vcs/J-2014.12-SP2
@@ -483,3 +487,7 @@ busy-box:
 #	cd linux-3.14.41; git remote add -t linux-3.14.y-riscv origin https://github.com/riscv/riscv-linux.git
 #	cd linux-3.14.41; git fetch
 #	cd linux-3.14.41; git checkout -f -t origin/linux-3.14.y-riscv
+
+%.echo:
+	@echo $* = $($*)
+
