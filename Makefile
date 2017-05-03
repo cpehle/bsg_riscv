@@ -15,7 +15,10 @@
 # yum install libmpc
 # assumed already installed: autoconf automake libtool curl gmp gawk bison flex texinfo gperf gcc48 gsed
 #
+# Note for RHEL/CentOS 6 64-Bit ##, you may first have to install EPEL repository to get libmpc:
 #
+# wget http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+# rpm -ivh epel-release-6-8.noarch.rpm
 #
 #
 CONFIG?=DefaultVLSIConfig
