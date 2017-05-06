@@ -1,0 +1,13 @@
+diff --git a/csrc/mm.cc b/csrc/mm.cc
+index c134404..9eda87b 100644
+--- a/csrc/mm.cc
++++ b/csrc/mm.cc
+@@ -39,6 +39,8 @@ void mm_t::init(size_t sz, int wsz, int lsz)
+   word_size = wsz;
+   line_size = lsz;
+   data = new uint8_t[sz];
++  fprintf(stderr, "###BSG initiasing all bytes in dramsim2 to 0xDB\n");
++  for(int i=0; i<sz; i++)  data[i]=0xDB;
+   size = sz;
+ }
+ 

@@ -22,6 +22,7 @@ CONFIG?=DefaultVLSIConfig
 export TOP=$(PWD)
 
 export RISCV=$(TOP)/riscv-install
+RV_BMARKS=$(RISCV)/riscv64-unknown-elf/share/riscv-tests/benchmarks
 export ROCKET_CHIP=$(TOP)/rocket-chip
 export PATCHES_DIR=$(TOP)/patches
 export BSG_REPO=$(TOP)/bsg-addons
@@ -63,13 +64,13 @@ dve:
 	dve -full64 -vpd $(VSIM)/vcdplus.vpd
 
 nothing:
-	#which pk
+	#which spike
 	#@echo "$(PATH)"
 	#which riscv64-unknown-linux-gnu-gcc
 	#which gcc
 	#spike -h
 	#which riscv64-unknown-elf-gcc
-	#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/hello.rv $(BSG_TESTS)/hello.c
+	#riscv64-unknown-elf-gcc -o $(BSG_TESTS)/bsg_hello.rv $(BSG_TESTS)/bsg_hello.c
 	#riscv64-unknown-linux-gnu-gcc -o $(BSG_TESTS)/hello.o $(BSG_TESTS)/hello.c
 
 
@@ -100,7 +101,7 @@ clean-rocc-to-top:
 	-cd $(ROCKET_CORE); git apply -R  $(PATCHES_DIR)/rocket-src/tile.scala.patch
 
 #resolves the dcache
-default-patch:
+default-patch: pk-patch pk-benchmarks-patch dramsim-patch
 	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/vsim/Makefrag.patch
 	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/vsim/Makefrag-verilog.patch
 	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/rocket-chip-src/Configs.scala.patch
@@ -110,7 +111,7 @@ default-patch:
 	-cd $(ROCKET_CORE); git apply $(PATCHES_DIR)/rocket-src/dpath_alu.scala.patch
 
 #reverses default-patch
-clean-default-patch:
+clean-default-patch: clean-pk-patch clean-pk-benchmarks-patch clean-dramsim-patch
 	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/vsim/Makefrag.patch
 	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/vsim/Makefrag-verilog.patch
 	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/rocket-chip-src/Configs.scala.patch
@@ -134,6 +135,12 @@ build-spike-pk:
 	@echo "#Building spike and pk only.."
 	cd $(RISCV_TOOLS); sed -i 's/JOBS=16/JOBS=8/' build.common
 	cd $(RISCV_TOOLS); $(BSG_SCRIPTS)/build-spike-pk-only.sh | tee $@.log
+
+build-pk:
+	@echo
+	@echo "#Building pk only.."
+	cd $(RISCV_TOOLS); sed -i 's/JOBS=16/JOBS=8/' build.common
+	cd $(RISCV_TOOLS); $(BSG_SCRIPTS)/build-pk.sh | tee $@.log
 
 #Newlib toolchain build
 build-riscv-tools-newlib:
@@ -167,6 +174,29 @@ clean-riscv-tools:
 %.S: %.rv
 	riscv64-unknown-elf-objdump -d $< > $@
 
+RISCV_PK=$(RISCV_TOOLS)/riscv-pk/pk
+
+#removes demand paging and wasteful DRAM initialisations to 0
+pk-patch:
+	-cd $(RISCV_PK); git apply $(PATCHES_DIR)/riscv-pk/vm.c.patch
+
+clean-pk-patch:
+	-cd $(RISCV_PK); git apply -R $(PATCHES_DIR)/riscv-pk/vm.c.patch
+
+#Initialises every byte in dramsim2 to 0xDB
+dramsim-patch:
+	-cd $(ROCKET_CHIP)/csrc; git apply $(PATCHES_DIR)/dramsim-csrc/mm.cc.patch
+ 
+clean-dramsim-patch:
+	-cd $(ROCKET_CHIP)/csrc; git apply -R $(PATCHES_DIR)/dramsim-csrc/mm.cc.patch
+
+#This patch is required to support running benchmarks on pk. benchmarks were intended for bare metal
+pk-benchmarks-patch:
+	-cd $(ROCKET_CHIP); git apply $(PATCHES_DIR)/rocket-chip-src/Testing.scala.patch
+	
+clean-pk-benchmarks-patch:
+	-cd $(ROCKET_CHIP); git apply -R $(PATCHES_DIR)/rocket-chip-src/Testing.scala.patch
+	
 
 #---------------------------------
 #Rockets versions
@@ -222,7 +252,7 @@ test-spike-hello: $(BSG_TESTS)/bsg_hello.rv
 	@echo
 	@echo "#Running $(notdir $<) on spike with pk.."
 	spike pk $<
-	@echo "sucess!"
+	@echo "success!"
 
 test-spike-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 	spike --extension=dummy_rocc pk $<
@@ -301,19 +331,6 @@ verilog-rocc: $(BSG_TESTS)/dummy_rocc_test.rv
 	make -C $(VSIM) clean
 	make -C $(VSIM) CONFIG=RoccExampleConfig
 	cd $(VSIM) && ./simv-Top-RoccExampleConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
-
-output_dir?=$(TOP)/$(VSIM)/output
-test?=rv64ui-p-add
-$(output_dir)/$(test).out:
-	cd $(VSIM)/ && make output/$(test).out CONFIG=RoccExampleConfig
-
-verilog-test: $(output_dir)/$(test).out
-
-clean-vsim:
-	touch $(BSG_TESTS)/dummy_rocc_test.c
-	cd $(VSIM); make clean
-	#make -C $(VSIM) clean
-
 
 
 #------------------------------------
@@ -398,10 +415,9 @@ clean-bsg-accel:
 	-patch -Rf $(VSIM)/Makefrag $(BSG_ACCEL_PATCHES)/vsim/Makefrag.patch
 
 num?=1
-verilog-run-acc: $(BSG_ACCEL_TESTS)/$(test).rv
-	make verilog-run CONFIG=Bsg$(num)AccelVLSIConfig
-	#cd $(VSIM) && ./simv-Top-Bsg$(num)AccelVLSIConfig -gui -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
-	cd $(VSIM) && ./simv-Top-Bsg$(num)AccelVLSIConfig -q +ntb_random_seed_automatic +dramsim +verbose +max-cycles=100000000 pk $< 3>&1 1>&2 2>&3 | spike-dasm > $@.out
+verilog-run-acc: verilog-clean $(BSG_ACCEL_TESTS)/$(test).riscv.rv
+	#make verilog-run CONFIG=Bsg$(num)AccelVLSIConfig
+	make verilog-test-pk CONFIG=Bsg$(num)AccelVLSIConfig test=$(test).riscv
 
 emulator-bsg-accel: $(BSG_ACCEL_TESTS)/sha3-accum.rv
 	make -C rocket-chip/emulator clean
@@ -410,6 +426,7 @@ emulator-bsg-accel: $(BSG_ACCEL_TESTS)/sha3-accum.rv
 
 verilog-clean:
 	make -C $(VSIM) clean
+	-cd $(VSIM) && rm *.log dramsim2_ini 
 
 emulator-debug:
 	cd rocket-chip/emulator; make debug
@@ -431,6 +448,28 @@ verilog-run: verilog-clean
 verilog-debug: verilog-clean
 	make -C $(VSIM) run-debug
 
+output_dir?=$(VSIM)/output
+test?=rv64ui-p-add
+
+$(output_dir)/$(test).out:
+	cd $(VSIM)/ && make output/$(test).out > $(test).log
+
+$(output_dir)/$(test).pk.out:
+	cd $(VSIM)/ && make output/$(test).pk.out |&tee $(test).pk.log
+
+$(RV_BMARKS)/$(test).%: $(BSG_ACCEL_TESTS)/$(test).rv
+	cp $< $(RV_BMARKS)
+
+#Runs specific test for any config. For example, make CONFIG=.. verilog-test test=median.riscv
+verilog-test: $(RV_BMARKS)/$(test).hex $(output_dir)/$(test).out
+
+#Runs specific test ON PK for any config. For example, make CONFIG=.. verilog-test-pk test=median.riscv
+verilog-test-pk: $(RV_BMARKS)/$(test).% $(output_dir)/$(test).pk.out
+
+#Cleans added tests from riscv-install. For example, make clean-pk-test test=pktest.riscv
+clean-test-pk:
+	-rm $(RV_BMARKS)/$(test).rv
+	-rm $(BSG_ACCEL_TESTS)/$(test).rv
 
 #------------------------------------
 #Linux

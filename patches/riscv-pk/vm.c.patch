@@ -1,0 +1,50 @@
+diff --git a/pk/vm.c b/pk/vm.c
+index cd2cba1..431b721 100644
+--- a/pk/vm.c
++++ b/pk/vm.c
+@@ -211,11 +211,11 @@ static int __handle_page_fault(uintptr_t vaddr, int prot)
+       size_t flen = MIN(RISCV_PGSIZE, v->length - (vaddr - v->addr));
+       ssize_t ret = file_pread(v->file, (void*)vaddr, flen, vaddr - v->addr + v->offset);
+       kassert(ret > 0);
+-      if (ret < RISCV_PGSIZE)
+-        memset((void*)vaddr + ret, 0, RISCV_PGSIZE - ret);
++//      if (ret < RISCV_PGSIZE)
++//        memset((void*)vaddr + ret, 0, RISCV_PGSIZE - ret);
+     }
+     else
+-      memset((void*)vaddr, 0, RISCV_PGSIZE);
++      //memset((void*)vaddr, 0, RISCV_PGSIZE);
+     __vmr_decref(v, 1);
+     *pte = pte_create(ppn, v->prot, 1);
+   }
+@@ -277,8 +277,8 @@ uintptr_t __do_mmap(uintptr_t addr, size_t length, int prot, int flags, file_t*
+ 
+     *pte = (pte_t)v;
+   }
+-
+-  if (!have_vm || (flags & MAP_POPULATE))
++//MAP_POPULATE flag is forced to avoid lazy allocation
++  if (!have_vm || (flags | MAP_POPULATE))
+     for (uintptr_t a = addr; a < addr + length; a += RISCV_PGSIZE)
+       kassert(__handle_page_fault(a, prot) == 0);
+ 
+@@ -438,16 +438,16 @@ void supervisor_vm_init()
+   mem_size = MIN(mem_size, highest_va - current.first_user_vaddr) & -SUPERPAGE_SIZE;
+ 
+   pte_t* sbi_pt = (pte_t*)(current.first_vaddr_after_user + current.bias);
+-  memset(sbi_pt, 0, RISCV_PGSIZE);
++  //memset(sbi_pt, 0, RISCV_PGSIZE);
+   pte_t* middle_pt = (void*)sbi_pt + RISCV_PGSIZE;
+ #ifndef __riscv64
+   size_t num_middle_pts = 1;
+   pte_t* root_pt = middle_pt;
+-  memset(root_pt, 0, RISCV_PGSIZE);
++  //memset(root_pt, 0, RISCV_PGSIZE);
+ #else
+   size_t num_middle_pts = (-current.first_user_vaddr - 1) / MEGAPAGE_SIZE + 1;
+   pte_t* root_pt = (void*)middle_pt + num_middle_pts * RISCV_PGSIZE;
+-  memset(middle_pt, 0, (num_middle_pts + 1) * RISCV_PGSIZE);
++  //memset(middle_pt, 0, (num_middle_pts + 1) * RISCV_PGSIZE);
+   for (size_t i = 0; i < num_middle_pts; i++)
+     root_pt[(1<<RISCV_PGLEVEL_BITS)-num_middle_pts+i] = ptd_create(((uintptr_t)middle_pt >> RISCV_PGSHIFT) + i);
+ #endif

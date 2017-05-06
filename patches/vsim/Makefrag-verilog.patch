@@ -1,5 +1,5 @@
 diff --git a/vsim/Makefrag-verilog b/vsim/Makefrag-verilog
-index 39ed547..9ed8a60 100644
+index 39ed547..d948041 100644
 --- a/vsim/Makefrag-verilog
 +++ b/vsim/Makefrag-verilog
 @@ -2,12 +2,17 @@
@@ -20,3 +20,13 @@ index 39ed547..9ed8a60 100644
  
  $(generated_dir)/consts.$(CONFIG).vh: $(generated_dir)/$(MODEL).$(CONFIG).v
  	echo "\`ifndef CONST_VH" > $@
+@@ -32,6 +37,9 @@ $(output_dir)/%.run: $(output_dir)/%.hex $(sim_dir)/dramsim2_ini $(simv)
+ $(output_dir)/%.out: $(output_dir)/%.hex $(sim_dir)/dramsim2_ini $(simv)
+ 	cd $(sim_dir) && $(exec_simv) +dramsim +verbose +max-cycles=$(timeout_cycles) +loadmem=$< $(disasm) $@ && [ $$PIPESTATUS -eq 0 ]
+ 
++$(output_dir)/%.pk.out: $(output_dir)/%.rv $(sim_dir)/dramsim2_ini $(simv)
++	cd $(sim_dir) && $(exec_simv) +dramsim +verbose +max-cycles=$(timeout_cycles) pk $< 3>&1 1>&2 2>&3 | $(RISCV)/bin/spike-dasm > $@ 
++
+ $(output_dir)/%.vcd: $(output_dir)/%.hex $(sim_dir)/dramsim2_ini $(simv_debug)
+ 	cd $(sim_dir) && $(exec_simv_debug) +dramsim +verbose +vcdfile=$@ +max-cycles=$(timeout_cycles) +loadmem=$< $(disasm) $(patsubst %.vcd,%.out,$@) && [ $$PIPESTATUS -eq 0 ]
+ 

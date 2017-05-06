@@ -1,0 +1,24 @@
+diff --git a/src/main/scala/Testing.scala b/src/main/scala/Testing.scala
+index 1ddadd1..052be63 100644
+--- a/src/main/scala/Testing.scala
++++ b/src/main/scala/Testing.scala
+@@ -18,6 +18,10 @@ $$(addprefix $$(output_dir)/, $$(addsuffix .hex, $$($makeTargetName))): $$(outpu
+ \tmkdir -p $$(output_dir)
+ \tln -fs $$< $$@
+ 
++$$(addprefix $$(output_dir)/, $$(addsuffix .rv, $$($makeTargetName))): $$(output_dir)/%.rv: $dir/%.rv
++\tmkdir -p $$(output_dir)
++\tln -fs $$< $$@
++
+ $$(addprefix $$(output_dir)/, $$($makeTargetName)): $$(output_dir)/%: $dir/%
+ \tmkdir -p $$(output_dir)
+ \tln -fs $$< $$@
+@@ -162,7 +166,7 @@ object DefaultTestSuites {
+   val rv64i = List(rv64ui, rv64si, rv64mi)
+ 
+   val bmarks = new BenchmarkTestSuite("basic", "$(RISCV)/riscv64-unknown-elf/share/riscv-tests/benchmarks", LinkedHashSet(
+-    "median", "multiply", "qsort", "towers", "vvadd", "mm", "dhrystone", "spmv", "mt-vvadd", "mt-matmul"))
++    "median", "multiply", "qsort", "towers", "vvadd", "mm", "dhrystone", "spmv", "mt-vvadd", "mt-matmul", "accum", "meminit", "accel_loopback"))
+ 
+   val mtBmarks = new BenchmarkTestSuite("mt", "$(RISCV)/riscv64-unknown-elf/share/riscv-tests/mt",
+     LinkedHashSet(((0 to 4).map("vvadd"+_) ++
